@@ -1,8 +1,10 @@
-/* game.js — Log (bitácora) y Game (orquesta cada sol y la UI).
+/* game.js — Log, Game (orquesta cada sol y el aviso de pronóstico) y UI del navegador.
    Stats y Decisions: stats-decisions.js. Clima: events.js. Textos: lang.js. Datos: data.js. */
 
-/* En node los módulos no comparten ámbito global: se exponen como globales
-   para usar los mismos nombres que en el navegador. */
+/* Con cuántos soles de antelación aparece el aviso de tormenta. */
+const FORECAST_AHEAD = 2;
+
+/* En node los módulos no comparten ámbito global: se exponen con los mismos nombres que en el navegador. */
 if (typeof module !== 'undefined') {
   Object.assign(globalThis,
     require('./data.js'),
@@ -36,7 +38,10 @@ class Game {
     this.log = new Log();
     this.decisions = new Decisions(this);
     this.weather = new SpaceWeather(rng);
+    this.forecast = null;         // { target, roll }: evento ya sorteado para la noche `target`
+    this.forecastOpen = false;    // ¿mostrar el aviso ahora?
     this.log.push('log.intro', { n: CFG.WIN_SOL });
+    this._prepareForecast();
   }
 
   /* botón de acción: si ya está activo, lo cancela */
@@ -49,6 +54,7 @@ class Game {
     if (this.over) return;
     this.decisions.resetForSol();
     this.alertKey = '';
+    this.forecastOpen = false;
     this._warnLow();
 
     const s = this.stats;
@@ -78,13 +84,38 @@ class Game {
       this.log.push('log.cropsDone', { n: c.food });
     }
 
-    // evento climático programado
+    // evento de esta noche: el que se anunció en el aviso, o uno nuevo si no hubo aviso
     if (this.weather.isEventDay(this.sol)){
-      this._applyWeather(this.weather.roll());
+      let roll;
+      if (this.forecast && this.forecast.target === this.sol){
+        roll = this.forecast.roll;
+        this.forecast = null;
+      } else {
+        roll = this.weather.draw();
+      }
+      this._applyWeather(roll);
     }
 
     if (this.sol >= CFG.WIN_SOL){ this.over = true; this.won = true; }
-    else this.sol++;
+    else { this.sol++; this._prepareForecast(); }
+  }
+
+  /* Próximo sol con evento, hasta el final de la partida. */
+  _nextEventSol(){
+    for (let t = this.sol + 1; t <= CFG.WIN_SOL; t++){
+      if (this.weather.isEventDay(t)) return t;
+    }
+    return null;
+  }
+
+  /* Si el próximo evento está a FORECAST_AHEAD soles o menos, sortea su tormenta y abre el aviso (una sola vez). */
+  _prepareForecast(){
+    const target = this._nextEventSol();
+    if (target === null) return;
+    if (target - this.sol > FORECAST_AHEAD) return;
+    if (this.forecast && this.forecast.target === target) return;   // ya avisado
+    this.forecast = { target, roll: this.weather.draw() };
+    this.forecastOpen = true;
   }
 
   score(){
@@ -113,6 +144,7 @@ class Game {
   _applyWeather(r){
     if (r.type === 'radiation') this._radiation(r.ev);
     else if (r.type === 'dust'){
+      this.weather.startDust();
       this.alertKey = 'alert.dust';
       this.log.push('log.dustStart');
     } else {
@@ -144,6 +176,7 @@ class Game {
 if (typeof document !== 'undefined') {
   const $ = sel => document.querySelector(sel);
   let game = new Game();
+  let srcState = 'loading';   // 'loading' | 'live' | 'archived'
 
   const sprites = {};
   ['sun', 'flare', 'hab', 'solar', 'rover'].forEach(k => {
@@ -194,6 +227,60 @@ if (typeof document !== 'undefined') {
     return t(m.key, v);
   }
 
+  /* etiqueta de la fuente de datos: en vivo, archivados o conectando */
+  function srcLabel(){
+    return t(srcState === 'live' ? 'src.live' : srcState === 'archived' ? 'src.archived' : 'src.loading');
+  }
+
+  function updateBadge(){
+    const el = $('#srcBadge');
+    el.textContent = srcLabel();
+    el.className = 'src ' + srcState;
+  }
+
+  const ICON = { radiation: '☢', dust: '🌪', quiet: '☀' };
+
+  /* línea de cuenta atrás, en la misma zona que los cultivos */
+  function countdownText(){
+    const f = game.forecast, type = f.roll.type, left = f.target - game.sol;
+    const key = 'cd.' + type + (left <= 0 ? '.now' : '');
+    return t(key, { n: left });
+  }
+
+  /* ---------- aviso de pronóstico (solo informa) ---------- */
+  function fillForecast(){
+    const f = game.forecast, ev = f.roll.ev, type = f.roll.type;
+    const left = f.target - game.sol;
+
+    $('#fcTitle').textContent = t('fc.title');
+    $('#fcWhen').textContent = t('fc.when', { n: left, target: f.target });
+
+    // fila de soles: desde hoy hasta la noche del evento
+    const track = $('#fcTrack');
+    track.innerHTML = '';
+    for (let s = game.sol; s <= f.target; s++){
+      const p = document.createElement('span');
+      const isNow = s === game.sol, isTarget = s === f.target;
+      p.className = 'pip' + (isNow ? ' now' : '') + (isTarget ? ' target' : '');
+      p.textContent = isTarget ? ICON[type] : s;
+      track.appendChild(p);
+    }
+
+    $('#fcArt').dataset.type = type;
+    $('#fcEvent').textContent = type === 'radiation' ? ev.date + ' — ' + L(ev, 'label') : '';
+    $('#fcNote').textContent = type === 'radiation' ? L(ev, 'note') : '';
+    $('#fcText').textContent = type === 'dust' ? t('fc.dust') : type === 'quiet' ? t('fc.quiet') : '';
+    $('#fcSource').textContent = srcLabel();
+    $('#fcDisclaimer').textContent = t('fc.disclaimer');
+    $('#fcOk').textContent = t('fc.continue');
+  }
+
+  function syncForecast(){
+    const open = !!game.forecast && game.forecastOpen && !game.over;
+    $('#forecast').hidden = !open;
+    if (open) fillForecast();
+  }
+
   function render(){
     const s = game.stats, d = game.decisions;
     $('#gameTitle').textContent = t('title');
@@ -207,10 +294,14 @@ if (typeof document !== 'undefined') {
     const cap = document.querySelector('.cap');
     if (cap) cap.style.left = s.maxO2 + '%';
 
+    // línea de cultivos y cuenta atrás del evento (misma zona, cuenta atrás en rojo)
     const growing = d.growing;
     const due = growing.length ? Math.min(...growing.map(c => c.due)) : 0;
-    $('#crops').textContent = growing.length
-      ? t('cropsLine', { n: growing.length, d: Math.max(1, due - game.sol) }) : '';
+    const lines = [];
+    if (growing.length) lines.push(t('cropsLine', { n: growing.length, d: Math.max(1, due - game.sol) }));
+    if (game.forecast && !game.over) lines.push('<span class="warn">' + countdownText() + '</span>');
+    $('#crops').innerHTML = lines.join('<br>');
+
     $('#alert').textContent = game.alertKey ? t(game.alertKey) : '';
     $('#picks').textContent = t('picks', { n: d.picksLeft });
     $('#nextSol').textContent = t('endSol');
@@ -223,7 +314,9 @@ if (typeof document !== 'undefined') {
     });
 
     $('#log').innerHTML = game.log.entries.map(m => '<li>' + renderMsg(m) + '</li>').join('');
+    updateBadge();
     drawScene();
+    syncForecast();
     if (game.over) showEnd();
   }
 
@@ -261,6 +354,7 @@ if (typeof document !== 'undefined') {
     });
   }
 
+  /* panel "¿Qué es real?": muestra el conjunto de eventos activo (en vivo o archivado) */
   function renderReal(){
     const rb = $('#realBody');
     rb.innerHTML = '';
@@ -268,7 +362,7 @@ if (typeof document !== 'undefined') {
     const add = (tag, html) => { const e = document.createElement(tag); e.innerHTML = html; rb.appendChild(e); return e; };
     add('p', t('real.stormsIntro'));
     const ul = add('ul', '');
-    DONKI_EVENTS.forEach(ev => {
+    game.weather.pool.forEach(ev => {
       const li = document.createElement('li');
       li.textContent = ev.date + ' — ' + L(ev, 'label') + ': ' + L(ev, 'note');
       ul.appendChild(li);
@@ -295,10 +389,20 @@ if (typeof document !== 'undefined') {
   $('#restart').onclick = () => {
     game = new Game();
     $('#endScreen').hidden = true;
+    renderReal();
     render();
   };
+  $('#fcOk').onclick = () => { game.forecastOpen = false; render(); };
 
   setLang(LANG);
+
+  /* datos vivos: si DONKI responde, sustituye el mazo; si no, quedan los archivados */
+  SpaceWeather.loadLive().then(events => {
+    srcState = events ? 'live' : 'archived';
+    if (events) game.weather.setPool(events, 'live');
+    renderReal();
+    render();
+  });
 
 } else if (typeof module !== 'undefined' && require.main === module) {
   /* ---------- pruebas en node: node js/game.js ---------- */
@@ -344,6 +448,20 @@ if (typeof document !== 'undefined') {
   console.assert(f.decisions.growing.length === 0, 'el cultivo debe cosecharse al madurar');
   console.assert(f.log.entries.some(e => e.key === 'log.cropsDone'), 'la cosecha debe registrarse en el log');
 
+  // aviso: aparece 2 soles antes, no vuelve a abrirse, y el evento anunciado es el que se aplica
+  const pr = new Game(() => 0.1);   // 0.1 < STORM: siempre tormenta
+  console.assert(pr.forecast === null && pr.forecastOpen === false, 'sin aviso en el sol 1 (faltan 3 soles)');
+  pr.nextSol();                     // sol 2: faltan 2 soles para la noche 4
+  console.assert(pr.sol === 2 && pr.forecast && pr.forecast.target === 4, 'el aviso debe prepararse para la noche 4');
+  console.assert(pr.forecastOpen === true, 'el aviso debe abrirse en el sol 2');
+  console.assert(countdownStr(pr) === '☢ Solar storm in 2 sol(s)' || countdownStr(pr).length > 0, 'la cuenta atrás debe existir');
+  const pev = pr.forecast.roll.ev;
+  pr.forecastOpen = false;          // el jugador cierra el aviso
+  pr.nextSol();                     // sol 3
+  console.assert(pr.forecastOpen === false, 'el aviso no debe reabrirse en el sol 3');
+  pr.nextSol();                     // sol 4: noche de evento
+  console.assert(pr.log.entries.some(e => e.vars && e.vars.ev === pev), 'debe aplicarse exactamente el evento anunciado');
+
   let wins = 0, aMax = 0, bMax = 0, aFood = 0, bFood = 0, bWins = 0;
   const N = 100;
   for (let i = 0; i < N; i++){
@@ -370,7 +488,7 @@ if (typeof document !== 'undefined') {
 
   console.log('Self-tests: careful won ' + wins + '/' + N + ' (avg maxO2 ' + Math.round(aMax / N) +
               ', avg food ' + Math.round(aFood / N) + ') | careless won ' + bWins + '/' + N +
-              ' | undo ok | crops ok | random ok');
+              ' | undo ok | crops ok | warning ok | random ok');
 }
 
 if (typeof module !== 'undefined') module.exports = { Game, ACTIONS, CFG };

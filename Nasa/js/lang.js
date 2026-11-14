@@ -1,4 +1,5 @@
-/* UI text — English (default) and Spanish. Language persists in localStorage. */
+/* lang.js — Textos de la interfaz en inglés (por defecto) y español.
+   El idioma se guarda en localStorage. */
 const TEXTS = {
   en: {
     title: 'JUNIOR ASTRONAUT: MARS OUTPOST',
@@ -9,6 +10,24 @@ const TEXTS = {
     picks: 'Actions left this sol: {n}',
     endSol: 'END SOL ▶', flyAgain: 'FLY AGAIN ▶', langBtn: 'ES',
     whatsReal: "What's real in this game?",
+
+    'src.loading': 'Connecting to NASA DONKI…',
+    'src.live': 'LIVE DATA · NASA DONKI',
+    'src.archived': 'ARCHIVED DATA',
+
+    'cd.radiation': '☢ Solar storm in {n} sol(s)',
+    'cd.radiation.now': '☢ Solar storm tonight',
+    'cd.dust': '🌪 Dust storm in {n} sol(s)',
+    'cd.dust.now': '🌪 Dust storm tonight',
+    'cd.quiet': '☀ Quiet sun in {n} sol(s)',
+    'cd.quiet.now': '☀ Quiet sun tonight',
+
+    'fc.title': 'SPACE WEATHER WARNING',
+    'fc.when': 'Arrives in {n} sol(s) · night of sol {target}',
+    'fc.quiet': 'A quiet sun is expected. No danger.',
+    'fc.dust': 'A dust storm is expected: solar power drops for 2 sols. Plan your energy.',
+    'fc.continue': 'CONTINUE ▶',
+    'fc.disclaimer': 'Educational simulation based on real DONKI events. It is not an official NASA or NOAA forecast.',
 
     'act.recycler.name': 'Water Recycler', 'act.recycler.hint': '+30 oxygen, −12 power',
     'act.shieldUp.name': 'Reinforce Shield', 'act.shieldUp.hint': '+30 shield, −20 power',
@@ -56,6 +75,24 @@ const TEXTS = {
     endSol: 'TERMINAR SOL ▶', flyAgain: 'JUGAR OTRA VEZ ▶', langBtn: 'EN',
     whatsReal: '¿Qué es real en este juego?',
 
+    'src.loading': 'Conectando con NASA DONKI…',
+    'src.live': 'DATOS EN VIVO · NASA DONKI',
+    'src.archived': 'DATOS ARCHIVADOS',
+
+    'cd.radiation': '☢ Tormenta solar en {n} sol(es)',
+    'cd.radiation.now': '☢ Tormenta solar esta noche',
+    'cd.dust': '🌪 Tormenta de polvo en {n} sol(es)',
+    'cd.dust.now': '🌪 Tormenta de polvo esta noche',
+    'cd.quiet': '☀ Sol tranquilo en {n} sol(es)',
+    'cd.quiet.now': '☀ Sol tranquilo esta noche',
+
+    'fc.title': 'AVISO DE CLIMA ESPACIAL',
+    'fc.when': 'Llega en {n} sol(es) · noche del sol {target}',
+    'fc.quiet': 'Se espera un sol tranquilo. No hay peligro.',
+    'fc.dust': 'Se espera una tormenta de polvo: la energía solar baja durante 2 soles. Planifica tu energía.',
+    'fc.continue': 'CONTINUAR ▶',
+    'fc.disclaimer': 'Simulación educativa basada en eventos reales de DONKI. No es un pronóstico oficial de NASA ni de NOAA.',
+
     'act.recycler.name': 'Recicladora de Agua', 'act.recycler.hint': '+30 oxígeno, −12 energía',
     'act.shieldUp.name': 'Reforzar Escudo', 'act.shieldUp.hint': '+30 escudo, −20 energía',
     'act.crops.name': 'Cultivar Alimentos', 'act.crops.hint': 'comida +25 en cosecha (3 soles), −12 energía, −6 oxígeno',
@@ -97,12 +134,16 @@ const TEXTS = {
 let LANG = 'en';
 try { LANG = localStorage.getItem('lang') || 'en'; } catch (e) {}
 
+/* Traduce una clave y sustituye los marcadores {nombre} por los valores de vars. */
 function t(key, vars){
   let s = (TEXTS[LANG] && TEXTS[LANG][key]) || TEXTS.en[key] || key;
-  if (vars) for (const k in vars) if (vars[k] !== undefined) s = s.split('{'+k+'}').join(vars[k]);
+  if (vars) for (const k in vars) if (vars[k] !== undefined) s = s.split('{' + k + '}').join(vars[k]);
   return s;
 }
-/* localized field lookup: en fields are unsuffixed ('label'), es fields are 'label_es' */
+
+/* Campo localizado: los campos en inglés no llevan sufijo ('label'), los de español sí ('label_es'). */
 function L(obj, field){
-  return (LANG === 'es' && obj[field+'_es'] != null) ? obj[field+'_es'] : obj[field];
+  return (LANG === 'es' && obj[field + '_es'] != null) ? obj[field + '_es'] : obj[field];
 }
+
+if (typeof module !== 'undefined') module.exports = { TEXTS, t, L };

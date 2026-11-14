@@ -11,7 +11,11 @@
 <body>
 <header>
   <h1 id="gameTitle">JUNIOR ASTRONAUT: MARS OUTPOST</h1>
-  <div class="hudline"><span id="solLine">SOL 1 / 30</span><button id="langBtn">ES</button></div>
+  <div class="hudline">
+    <span id="solLine">SOL 1 / 30</span>
+    <span id="srcBadge" class="src loading"></span>
+    <button id="langBtn">ES</button>
+  </div>
 </header>
 
 <main>
@@ -23,6 +27,7 @@
     <div class="bar" data-k="shield"><label>SHIELD</label><div class="track"><div class="fill shield" style="width:60%"></div></div><span class="val">60</span></div>
     <div class="bar" data-k="food"><label>FOOD</label><div class="track"><div class="fill food" style="width:60%"></div></div><span class="val">60</span></div>
     <div id="crops"></div>
+    <div id="forecastLine" class="fc-line" hidden></div>
     <div id="alert" aria-live="polite"></div>
   </section>
 
@@ -44,6 +49,34 @@
   Prototype for the NASA Space Apps Challenge "Build a Junior Astronaut Mission Trainer".
   Data: NASA DONKI (space weather) · NASA OSDR RadLab (radiation dosimetry). NASA does not endorse this project.
 </footer>
+
+<!-- Aviso de pronóstico: solo informa, no tiene acciones de juego -->
+<div id="forecast" hidden role="dialog" aria-modal="true" aria-labelledby="fcTitle">
+  <div class="forecast-card">
+    <h2 id="fcTitle"></h2>
+    <p id="fcWhen" class="fc-when"></p>
+
+    <div id="fcTrack" class="fc-track" aria-hidden="true"></div>
+
+    <svg id="fcArt" viewBox="0 0 320 110" aria-hidden="true">
+      <circle cx="44" cy="55" r="42" class="fc-glow"/>
+      <circle cx="44" cy="55" r="30" class="fc-sun"/>
+      <path id="fcWave" d="M84 55 C130 18 190 92 236 55"/>
+      <circle cx="276" cy="55" r="26" class="fc-mars"/>
+      <rect x="262" y="46" width="28" height="14" class="fc-hab"/>
+    </svg>
+
+    <p id="fcEvent" class="fc-event"></p>
+    <p id="fcNote" class="fc-note"></p>
+    <p id="fcText" class="fc-note"></p>
+    <p id="fcSource" class="fc-src"></p>
+
+    <div class="fc-actions">
+      <button id="fcOk"></button>
+    </div>
+    <p id="fcDisclaimer" class="fc-disclaimer"></p>
+  </div>
+</div>
 
 <div id="endScreen" hidden>
   <div class="card">
