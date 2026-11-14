@@ -1,58 +1,85 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Junior Astronaut Mission Trainer — Mars Outpost</title>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Junior Astronaut Mission Trainer — Mars Outpost</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<header>
+
+<header class="top">
   <h1 id="gameTitle">JUNIOR ASTRONAUT: MARS OUTPOST</h1>
   <div class="hudline">
     <span id="solLine">SOL 1 / 30</span>
-    <span id="srcBadge" class="src loading"></span>
-    <button id="langBtn">ES</button>
+    <button id="langBtn" class="btn-small">ES</button>
   </div>
 </header>
 
-<main>
-  <canvas id="scene" width="320" height="180"></canvas>
+<main class="layout">
 
-  <section id="hud">
-    <div class="bar" data-k="power"><label>POWER</label><div class="track"><div class="fill power" style="width:50%"></div></div><span class="val">50</span></div>
-    <div class="bar" data-k="oxygen"><label>OXYGEN</label><div class="track"><div class="fill oxygen" style="width:80%"></div><div class="cap" style="left:100%"></div></div><span class="val">80</span></div>
-    <div class="bar" data-k="shield"><label>SHIELD</label><div class="track"><div class="fill shield" style="width:60%"></div></div><span class="val">60</span></div>
-    <div class="bar" data-k="food"><label>FOOD</label><div class="track"><div class="fill food" style="width:60%"></div></div><span class="val">60</span></div>
-    <div id="crops"></div>
-    <div id="forecastLine" class="fc-line" hidden></div>
-    <div id="alert" aria-live="polite"></div>
+  <section class="panel scene-panel">
+    <canvas id="scene" width="320" height="180" aria-label="Escena de la base en Marte"></canvas>
   </section>
 
-  <section id="actions">
-    <p id="picks">Actions left this sol: 2</p>
-    <div id="btns"></div>
-    <button id="nextSol">END SOL ▶</button>
+  <section class="panel" id="hud" aria-label="Recursos">
+    <div class="bar" data-k="power">
+      <label>POWER</label>
+      <div class="track"><div class="fill power" style="width:50%"></div></div>
+      <span class="val">50</span>
+    </div>
+    <div class="bar" data-k="oxygen">
+      <label>OXYGEN</label>
+      <div class="track"><div class="fill oxygen" style="width:80%"></div><div class="cap" style="left:100%"></div></div>
+      <span class="val">80</span>
+    </div>
+    <div class="bar" data-k="shield">
+      <label>SHIELD</label>
+      <div class="track"><div class="fill shield" style="width:60%"></div></div>
+      <span class="val">60</span>
+    </div>
+    <div class="bar" data-k="food">
+      <label>FOOD</label>
+      <div class="track"><div class="fill food" style="width:60%"></div></div>
+      <span class="val">60</span>
+    </div>
+
+    <!-- Eventos climáticos: mismo tamaño de texto, cada uno independiente -->
+    <div id="events" class="events" aria-live="polite">
+      <div id="dustLine" class="event-line dust" hidden></div>
+      <div id="forecastLine" class="event-line" hidden></div>
+    </div>
+
+    <div id="crops" class="status-line"></div>
+    <div id="alert" class="alert" aria-live="polite"></div>
   </section>
 
-  <ul id="log" aria-live="polite"></ul>
+  <section class="panel" id="actions" aria-label="Decisiones del sol">
+    <div id="btns" class="btn-grid"></div>
+    <button id="nextSol" class="btn-end">END SOL ▶</button>
+  </section>
 
-  <details id="real">
+  <section class="panel">
+    <ul id="log" class="log" aria-live="polite"></ul>
+  </section>
+
+  <details id="real" class="panel">
     <summary>What's real in this game?</summary>
     <div id="realBody"></div>
   </details>
+
 </main>
 
-<footer>
-  Prototype for the NASA Space Apps Challenge "Build a Junior Astronaut Mission Trainer".
+<footer class="foot">
+  Prototype for the NASA Space Apps Challenge "Build a Junior Astronaut Mission Trainer".<br>
   Data: NASA DONKI (space weather) · NASA OSDR RadLab (radiation dosimetry). NASA does not endorse this project.
 </footer>
 
-<!-- Aviso de pronóstico: solo informa, no tiene acciones de juego -->
-<div id="forecast" hidden role="dialog" aria-modal="true" aria-labelledby="fcTitle">
-  <div class="forecast-card">
+<!-- Aviso de pronóstico: solo informa, sin acciones de juego -->
+<div id="forecast" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="fcTitle">
+  <div class="card forecast-card">
     <h2 id="fcTitle"></h2>
     <p id="fcWhen" class="fc-when"></p>
 
@@ -69,21 +96,31 @@
     <p id="fcEvent" class="fc-event"></p>
     <p id="fcNote" class="fc-note"></p>
     <p id="fcText" class="fc-note"></p>
-    <p id="fcSource" class="fc-src"></p>
+
+    <div id="fcGauge" class="gauge" hidden>
+      <div class="gauge-track">
+        <div id="fcFill" class="gauge-fill"></div>
+        <div id="fcMark" class="gauge-mark"></div>
+      </div>
+      <p class="gauge-legend">
+        <span id="fcYoursLbl"></span> <b id="fcYours"></b> ·
+        <span id="fcNeedLbl"></span> <b id="fcNeed"></b>
+      </p>
+      <p id="fcVerdict" class="verdict"></p>
+    </div>
 
     <div class="fc-actions">
-      <button id="fcOk"></button>
+      <button id="fcOk" class="btn-end"></button>
     </div>
-    <p id="fcDisclaimer" class="fc-disclaimer"></p>
   </div>
 </div>
 
-<div id="endScreen" hidden>
-  <div class="card">
+<div id="endScreen" class="overlay" hidden>
+  <div class="card end-card">
     <h2 id="endTitle">MISSION SUCCESS!</h2>
     <p id="endStats"></p>
     <p id="endLearn"></p>
-    <button id="restart">FLY AGAIN ▶</button>
+    <button id="restart" class="btn-end">FLY AGAIN ▶</button>
   </div>
 </div>
 

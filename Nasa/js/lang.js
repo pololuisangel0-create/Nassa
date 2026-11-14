@@ -7,7 +7,6 @@ const TEXTS = {
     dust: ' · DUST STORM',
     power: 'POWER', oxygen: 'OXYGEN', shield: 'SHIELD', food: 'FOOD',
     cropsLine: '🌱 {n} growing · harvest in {d} sols',
-    picks: 'Actions left this sol: {n}',
     endSol: 'END SOL ▶', flyAgain: 'FLY AGAIN ▶', langBtn: 'ES',
     whatsReal: "What's real in this game?",
 
@@ -15,19 +14,21 @@ const TEXTS = {
     'src.live': 'LIVE DATA · NASA DONKI',
     'src.archived': 'ARCHIVED DATA',
 
+    'dust.active': '🌪 Dust storm: {n} night(s) left',
+
     'cd.radiation': '☢ Solar storm in {n} sol(s)',
     'cd.radiation.now': '☢ Solar storm tonight',
     'cd.dust': '🌪 Dust storm in {n} sol(s)',
     'cd.dust.now': '🌪 Dust storm tonight',
-    'cd.quiet': '☀ Quiet sun in {n} sol(s)',
-    'cd.quiet.now': '☀ Quiet sun tonight',
 
     'fc.title': 'SPACE WEATHER WARNING',
     'fc.when': 'Arrives in {n} sol(s) · night of sol {target}',
-    'fc.quiet': 'A quiet sun is expected. No danger.',
-    'fc.dust': 'A dust storm is expected: solar power drops for 2 sols. Plan your energy.',
+    'fc.dust': 'A dust storm is expected: solar power drops for 3 sols. Plan your energy.',
     'fc.continue': 'CONTINUE ▶',
-    'fc.disclaimer': 'Educational simulation based on real DONKI events. It is not an official NASA or NOAA forecast.',
+    'fc.yours': 'Your shield that night',
+    'fc.need': 'Shield needed',
+    'fc.ok': '✅ Enough shield: the storm will be absorbed.',
+    'fc.short': '❌ Missing {n} shield: the storm will damage your oxygen gear.',
 
     'act.recycler.name': 'Water Recycler', 'act.recycler.hint': '+30 oxygen, −12 power',
     'act.shieldUp.name': 'Reinforce Shield', 'act.shieldUp.hint': '+30 shield, −20 power',
@@ -35,8 +36,7 @@ const TEXTS = {
 
     'log.intro': '🚀 Touchdown! You command the Mars outpost. Survive {n} sols.',
     'log.act': '🔧 {name}: {hint}',
-    'log.quiet': '☀ Quiet sun today. No big solar events.',
-    'log.dustStart': '🌪 Dust storm — solar panels get almost no sun for 2 sols!',
+    'log.dustStart': '🌪 Dust storm — solar panels get almost no sun for 3 sols!',
     'log.dustEnd': '🌤 The dust storm cleared. Solar power is back.',
     'log.lowPower': '⚠ Batteries almost empty!',
     'log.lowShield': '⚠ Shield almost empty! Reinforce it.',
@@ -52,7 +52,7 @@ const TEXTS = {
 
     'alert.storm': '☢ SOLAR STORM! Not enough shielding — equipment damaged!',
     'alert.absorbed': '🛡 Solar storm absorbed by your shield!',
-    'alert.dust': '🌪 Dust storm — solar panels get almost no sun for 2 sols!',
+    'alert.dust': '🌪 Dust storm — solar panels get almost no sun for 3 sols!',
 
     'end.win': 'MISSION SUCCESS!', 'end.lose': 'MISSION FAILED',
     'end.sols': 'Sols survived: {n}',
@@ -71,7 +71,6 @@ const TEXTS = {
     dust: ' · TORMENTA DE POLVO',
     power: 'ENERGÍA', oxygen: 'OXÍGENO', shield: 'ESCUDO', food: 'COMIDA',
     cropsLine: '🌱 {n} creciendo · cosecha en {d} soles',
-    picks: 'Acciones restantes este sol: {n}',
     endSol: 'TERMINAR SOL ▶', flyAgain: 'JUGAR OTRA VEZ ▶', langBtn: 'EN',
     whatsReal: '¿Qué es real en este juego?',
 
@@ -79,19 +78,21 @@ const TEXTS = {
     'src.live': 'DATOS EN VIVO · NASA DONKI',
     'src.archived': 'DATOS ARCHIVADOS',
 
+    'dust.active': '🌪 Tormenta de polvo: quedan {n} noche(s)',
+
     'cd.radiation': '☢ Tormenta solar en {n} sol(es)',
     'cd.radiation.now': '☢ Tormenta solar esta noche',
     'cd.dust': '🌪 Tormenta de polvo en {n} sol(es)',
     'cd.dust.now': '🌪 Tormenta de polvo esta noche',
-    'cd.quiet': '☀ Sol tranquilo en {n} sol(es)',
-    'cd.quiet.now': '☀ Sol tranquilo esta noche',
 
     'fc.title': 'AVISO DE CLIMA ESPACIAL',
     'fc.when': 'Llega en {n} sol(es) · noche del sol {target}',
-    'fc.quiet': 'Se espera un sol tranquilo. No hay peligro.',
-    'fc.dust': 'Se espera una tormenta de polvo: la energía solar baja durante 2 soles. Planifica tu energía.',
+    'fc.dust': 'Se espera una tormenta de polvo: la energía solar baja durante 3 soles. Planifica tu energía.',
     'fc.continue': 'CONTINUAR ▶',
-    'fc.disclaimer': 'Simulación educativa basada en eventos reales de DONKI. No es un pronóstico oficial de NASA ni de NOAA.',
+    'fc.yours': 'Tu escudo esa noche',
+    'fc.need': 'Escudo necesario',
+    'fc.ok': '✅ Escudo suficiente: la tormenta será absorbida.',
+    'fc.short': '❌ Te faltan {n} de escudo: la tormenta dañará el equipo de oxígeno.',
 
     'act.recycler.name': 'Recicladora de Agua', 'act.recycler.hint': '+30 oxígeno, −12 energía',
     'act.shieldUp.name': 'Reforzar Escudo', 'act.shieldUp.hint': '+30 escudo, −20 energía',
@@ -99,8 +100,7 @@ const TEXTS = {
 
     'log.intro': '🚀 ¡Aterrizaje! Comandas el puesto avanzado de Marte. Sobrevive {n} soles.',
     'log.act': '🔧 {name}: {hint}',
-    'log.quiet': '☀ Sol tranquilo hoy. Sin grandes eventos solares.',
-    'log.dustStart': '🌪 ¡Tormenta de polvo! Los paneles casi no recibirán sol por 2 soles.',
+    'log.dustStart': '🌪 ¡Tormenta de polvo! Los paneles casi no recibirán sol por 3 soles.',
     'log.dustEnd': '🌤 La tormenta de polvo pasó. La energía solar vuelve.',
     'log.lowPower': '⚠ ¡Baterías casi vacías!',
     'log.lowShield': '⚠ ¡Escudo casi vacío! Refuérzalo.',
@@ -116,7 +116,7 @@ const TEXTS = {
 
     'alert.storm': '☢ ¡TORMENTA SOLAR! Escudo insuficiente — ¡equipo dañado!',
     'alert.absorbed': '🛡 ¡Tormenta solar absorbida por tu escudo!',
-    'alert.dust': '🌪 Tormenta de polvo — ¡casi sin energía solar por 2 soles!',
+    'alert.dust': '🌪 Tormenta de polvo — ¡casi sin energía solar por 3 soles!',
 
     'end.win': '¡MISIÓN LOGRADA!', 'end.lose': 'MISIÓN FALLIDA',
     'end.sols': 'Soles sobrevividos: {n}',

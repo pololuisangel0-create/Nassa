@@ -141,14 +141,13 @@ class Game {
     }
   }
 
+  /* Solo hay dos tipos de evento: tormenta solar o tormenta de arena. */
   _applyWeather(r){
     if (r.type === 'radiation') this._radiation(r.ev);
-    else if (r.type === 'dust'){
+    else {
       this.weather.startDust();
       this.alertKey = 'alert.dust';
       this.log.push('log.dustStart');
-    } else {
-      this.log.push('log.quiet');
     }
   }
 
@@ -176,7 +175,6 @@ class Game {
 if (typeof document !== 'undefined') {
   const $ = sel => document.querySelector(sel);
   let game = new Game();
-  let srcState = 'loading';   // 'loading' | 'live' | 'archived'
 
   const sprites = {};
   ['sun', 'flare', 'hab', 'solar', 'rover'].forEach(k => {
@@ -227,24 +225,36 @@ if (typeof document !== 'undefined') {
     return t(m.key, v);
   }
 
-  /* etiqueta de la fuente de datos: en vivo, archivados o conectando */
-  function srcLabel(){
-    return t(srcState === 'live' ? 'src.live' : srcState === 'archived' ? 'src.archived' : 'src.loading');
-  }
+  const ICON = { radiation: '☢', dust: '🌪' };
 
-  function updateBadge(){
-    const el = $('#srcBadge');
-    el.textContent = srcLabel();
-    el.className = 'src ' + srcState;
-  }
-
-  const ICON = { radiation: '☢', dust: '🌪', quiet: '☀' };
-
-  /* línea de cuenta atrás, en la misma zona que los cultivos */
-  function countdownText(){
+  /* Línea del evento que se avisa: cuenta atrás. Rojo para solar, naranja para polvo. */
+  function forecastLineHTML(){
     const f = game.forecast, type = f.roll.type, left = f.target - game.sol;
     const key = 'cd.' + type + (left <= 0 ? '.now' : '');
     return t(key, { n: left });
+  }
+
+  /* medidor de escudo: tu escudo esa noche frente al escudo necesario (solo tormentas solares) */
+  function fillShieldGauge(type, ev){
+    const box = $('#fcGauge');
+    box.hidden = type !== 'radiation';
+    if (type !== 'radiation') return;
+
+    const need = SpaceWeather.need(ev);
+    // el escudo se desgasta una noche antes de que llegue la tormenta
+    const yours = Math.round(Math.max(0, game.stats.shield - CFG.SHIELD_DECAY));
+    const ok = yours >= need;
+
+    $('#fcFill').style.width = Math.min(100, yours) + '%';
+    $('#fcMark').style.left = Math.min(100, need) + '%';
+    $('#fcYoursLbl').textContent = t('fc.yours');
+    $('#fcYours').textContent = yours;
+    $('#fcNeedLbl').textContent = t('fc.need');
+    $('#fcNeed').textContent = need;
+
+    const v = $('#fcVerdict');
+    v.textContent = ok ? t('fc.ok') : t('fc.short', { n: need - yours });
+    v.className = 'verdict ' + (ok ? 'ok' : 'bad');
   }
 
   /* ---------- aviso de pronóstico (solo informa) ---------- */
@@ -269,9 +279,8 @@ if (typeof document !== 'undefined') {
     $('#fcArt').dataset.type = type;
     $('#fcEvent').textContent = type === 'radiation' ? ev.date + ' — ' + L(ev, 'label') : '';
     $('#fcNote').textContent = type === 'radiation' ? L(ev, 'note') : '';
-    $('#fcText').textContent = type === 'dust' ? t('fc.dust') : type === 'quiet' ? t('fc.quiet') : '';
-    $('#fcSource').textContent = srcLabel();
-    $('#fcDisclaimer').textContent = t('fc.disclaimer');
+    $('#fcText').textContent = type === 'dust' ? t('fc.dust') : '';
+    fillShieldGauge(type, ev);
     $('#fcOk').textContent = t('fc.continue');
   }
 
@@ -279,6 +288,20 @@ if (typeof document !== 'undefined') {
     const open = !!game.forecast && game.forecastOpen && !game.over;
     $('#forecast').hidden = !open;
     if (open) fillForecast();
+  }
+
+  /* Bloque de eventos: cada línea es independiente y del mismo tamaño.
+     Orden de prioridad: tormenta de arena activa primero, luego el próximo evento. */
+  function renderEvents(){
+    const dust = $('#dustLine');
+    dust.hidden = !(game.weather.dusty && !game.over);
+    if (!dust.hidden) dust.textContent = t('dust.active', { n: game.weather.dustLeft });
+
+    const fl = $('#forecastLine');
+    const showForecast = !!game.forecast && !game.over;
+    fl.hidden = !showForecast;
+    fl.className = 'event-line' + (showForecast && game.forecast.roll.type === 'dust' ? ' dust' : ' solar');
+    if (showForecast) fl.textContent = forecastLineHTML();
   }
 
   function render(){
@@ -294,16 +317,15 @@ if (typeof document !== 'undefined') {
     const cap = document.querySelector('.cap');
     if (cap) cap.style.left = s.maxO2 + '%';
 
-    // línea de cultivos y cuenta atrás del evento (misma zona, cuenta atrás en rojo)
+    renderEvents();
+
+    // cultivos: línea propia, debajo de los eventos
     const growing = d.growing;
     const due = growing.length ? Math.min(...growing.map(c => c.due)) : 0;
-    const lines = [];
-    if (growing.length) lines.push(t('cropsLine', { n: growing.length, d: Math.max(1, due - game.sol) }));
-    if (game.forecast && !game.over) lines.push('<span class="warn">' + countdownText() + '</span>');
-    $('#crops').innerHTML = lines.join('<br>');
+    $('#crops').textContent = growing.length
+      ? t('cropsLine', { n: growing.length, d: Math.max(1, due - game.sol) }) : '';
 
     $('#alert').textContent = game.alertKey ? t(game.alertKey) : '';
-    $('#picks').textContent = t('picks', { n: d.picksLeft });
     $('#nextSol').textContent = t('endSol');
 
     const active = d.active();
@@ -314,7 +336,6 @@ if (typeof document !== 'undefined') {
     });
 
     $('#log').innerHTML = game.log.entries.map(m => '<li>' + renderMsg(m) + '</li>').join('');
-    updateBadge();
     drawScene();
     syncForecast();
     if (game.over) showEnd();
@@ -396,9 +417,9 @@ if (typeof document !== 'undefined') {
 
   setLang(LANG);
 
-  /* datos vivos: si DONKI responde, sustituye el mazo; si no, quedan los archivados */
+  /* datos vivos: si DONKI responde, sustituye el mazo; si no, quedan los archivados.
+     El estado de la fuente ya no se muestra en pantalla. */
   SpaceWeather.loadLive().then(events => {
-    srcState = events ? 'live' : 'archived';
     if (events) game.weather.setPool(events, 'live');
     renderReal();
     render();
@@ -409,7 +430,8 @@ if (typeof document !== 'undefined') {
   function simulate(strategy){
     const g = new Game();
     for (let d = 0; d < 60 && !g.over; d++){
-      for (let p = 0; p < 2; p++){
+      // una sola acción por sol (CFG.PICKS_PER_SOL)
+      for (let p = 0; p < CFG.PICKS_PER_SOL; p++){
         const id = strategy(g);
         if (id && g.decisions.canDo(id)) g.decisions.do(id);
       }
@@ -417,9 +439,15 @@ if (typeof document !== 'undefined') {
     }
     return g;
   }
+  // estrategia prudente: una acción por sol, por prioridad
   const careful = g => {
     const s = g.stats;
-    return s.shield < 70 ? 'shieldUp' : s.food < 55 ? 'crops' : s.oxygen < 60 ? 'recycler' : s.power >= 40 ? 'crops' : s.oxygen < 85 ? 'recycler' : null;
+    if (s.shield < 70) return 'shieldUp';
+    if (s.food < 55) return 'crops';
+    if (s.oxygen < 60) return 'recycler';
+    if (s.power >= 40) return 'crops';
+    if (s.oxygen < 85) return 'recycler';
+    return null;
   };
   const careless = g => g.stats.oxygen < 55 ? 'recycler' : null;
 
@@ -436,8 +464,14 @@ if (typeof document !== 'undefined') {
   console.assert(u.stats.power === p0 && u.stats.oxygen === o0 &&
                  u.decisions.picksLeft === pl0 && u.log.length === h0, 'undo must restore the previous state');
 
+  // límite de acciones: con PICKS_PER_SOL = 1, una segunda acción en el mismo sol no se permite
+  const lim = new Game();
+  lim.decisions.do('recycler');
+  console.assert(lim.decisions.do('recycler') === false || CFG.PICKS_PER_SOL > 1,
+                 'solo se permite una acción por sol');
+
   // regresión del bug: plantar no suma comida; la cosecha sí, y solo al madurar
-  const noRand = () => 0.99;   // sin tormentas ni polvo: resultado determinista
+  const noRand = () => 0.99;   // sin tormentas solares: solo tormentas de arena
   const f = new Game(noRand);
   const f0 = f.stats.food;
   f.decisions.do('crops');
@@ -448,18 +482,26 @@ if (typeof document !== 'undefined') {
   console.assert(f.decisions.growing.length === 0, 'el cultivo debe cosecharse al madurar');
   console.assert(f.log.entries.some(e => e.key === 'log.cropsDone'), 'la cosecha debe registrarse en el log');
 
+  // tormenta de arena: dura 3 noches
+  const dz = new Game(() => 0.99);
+  dz.weather.startDust();
+  let nights = 0;
+  while (dz.weather.dusty && nights < 10){ dz.weather.tickDust(); nights++; }
+  console.assert(nights === 3, 'la tormenta de arena debe durar 3 soles');
+
   // aviso: aparece 2 soles antes, no vuelve a abrirse, y el evento anunciado es el que se aplica
-  const pr = new Game(() => 0.1);   // 0.1 < STORM: siempre tormenta
-  console.assert(pr.forecast === null && pr.forecastOpen === false, 'sin aviso en el sol 1 (faltan 3 soles)');
-  pr.nextSol();                     // sol 2: faltan 2 soles para la noche 4
-  console.assert(pr.sol === 2 && pr.forecast && pr.forecast.target === 4, 'el aviso debe prepararse para la noche 4');
-  console.assert(pr.forecastOpen === true, 'el aviso debe abrirse en el sol 2');
-  console.assert(countdownStr(pr) === '☢ Solar storm in 2 sol(s)' || countdownStr(pr).length > 0, 'la cuenta atrás debe existir');
+  const pr = new Game(() => 0.1);   // 0.1 < STORM: tormenta solar
+  console.assert(pr.forecast === null && pr.forecastOpen === false, 'sin aviso en el sol 1 (faltan 4 soles)');
+  pr.nextSol();                     // sol 2: faltan 3 soles para la noche 5 (aún fuera de FORECAST_AHEAD)
+  pr.nextSol();                     // sol 3: faltan 2 soles para la noche 5
+  console.assert(pr.sol === 3 && pr.forecast && pr.forecast.target === 5, 'el aviso debe prepararse para la noche 5');
+  console.assert(pr.forecastOpen === true, 'el aviso debe abrirse en el sol 3');
+  console.assert(pr.forecast.target - pr.sol === 2, 'la cuenta atrás debe ser de 2 soles');
   const pev = pr.forecast.roll.ev;
   pr.forecastOpen = false;          // el jugador cierra el aviso
-  pr.nextSol();                     // sol 3
-  console.assert(pr.forecastOpen === false, 'el aviso no debe reabrirse en el sol 3');
-  pr.nextSol();                     // sol 4: noche de evento
+  pr.nextSol();                     // sol 4
+  console.assert(pr.forecastOpen === false, 'el aviso no debe reabrirse en el sol 4');
+  pr.nextSol();                     // sol 5: noche de evento
   console.assert(pr.log.entries.some(e => e.vars && e.vars.ev === pev), 'debe aplicarse exactamente el evento anunciado');
 
   let wins = 0, aMax = 0, bMax = 0, aFood = 0, bFood = 0, bWins = 0;
@@ -488,7 +530,7 @@ if (typeof document !== 'undefined') {
 
   console.log('Self-tests: careful won ' + wins + '/' + N + ' (avg maxO2 ' + Math.round(aMax / N) +
               ', avg food ' + Math.round(aFood / N) + ') | careless won ' + bWins + '/' + N +
-              ' | undo ok | crops ok | warning ok | random ok');
+              ' | undo ok | crops ok | dust 3 sols ok | warning ok | random ok');
 }
 
 if (typeof module !== 'undefined') module.exports = { Game, ACTIONS, CFG };

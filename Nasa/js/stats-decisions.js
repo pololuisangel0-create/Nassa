@@ -4,9 +4,10 @@
 const CFG = {
   WIN_SOL: 30,
   START: { power: 50, oxygen: 80, shield: 60, food: 60, maxO2: 100 },
+  PICKS_PER_SOL: 1,   // acciones permitidas por sol
   INCOME: 14, DUST_INCOME: 3,
   O2_DRAIN: 3, FOOD_DRAIN: 3, SHIELD_DECAY: 2, MIN_O2_GEAR: 30,
-  WARN_LOW: 10,   // umbral del aviso "casi vacío"
+  WARN_LOW: 10,       // umbral del aviso "casi vacío"
 };
 
 /* "crops" NO da comida al plantar: la cosecha llega 3 soles después. */
@@ -35,13 +36,13 @@ class Stats {
 class Decisions {
   constructor(game){
     this.game = game;
-    this.picksLeft = 2;
+    this.picksLeft = CFG.PICKS_PER_SOL;
     this.undoStack = [];
     this.growing = [];   // cultivos en marcha: { due, food }
   }
 
   resetForSol(){
-    this.picksLeft = 2;
+    this.picksLeft = CFG.PICKS_PER_SOL;
     this.undoStack = [];
   }
 

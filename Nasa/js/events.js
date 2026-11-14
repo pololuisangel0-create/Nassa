@@ -1,4 +1,5 @@
-/* events.js — Clima espacial: mazo de eventos, sorteo, pronóstico y datos en vivo de DONKI.
+/* events.js — Clima espacial: mazo de tormentas reales, tormentas de arena,
+   pronóstico y datos en vivo de DONKI.
    No modifica el estado del juego: devuelve resultados que game.js aplica. */
 
 const WEATHER_DATA = (typeof module !== 'undefined')
@@ -30,22 +31,22 @@ class SpaceWeather {
     return true;
   }
 
-  /* Sortea un evento sin efectos secundarios.
-     Devuelve { type:'radiation', ev } | { type:'dust' } | { type:'quiet' }. */
+  /* Sortea el evento de una noche de evento. Solo hay dos tipos:
+     { type:'radiation', ev } (tormenta solar real) o { type:'dust' } (tormenta de arena).
+     Función sin efectos secundarios: el polvo empieza al aplicarse (startDust). */
   draw(){
-    const C = SpaceWeather.CFG, r = this.rng();
-    if (r < C.STORM){
+    const C = SpaceWeather.CFG;
+    if (this.rng() < C.STORM){
       if (!this.deck.length) this.deck = this._shuffled();
       return { type: 'radiation', ev: this.deck.pop() };
     }
-    if (r < C.STORM + C.DUST) return { type: 'dust' };
-    return { type: 'quiet' };
+    return { type: 'dust' };
   }
 
-  /* Se llama cuando el polvo empieza de verdad, no al pronosticarlo. */
+  /* Se llama cuando la tormenta de arena empieza de verdad, no al pronosticarla. */
   startDust(){ this.dustLeft = SpaceWeather.CFG.DUST_LEN; }
 
-  /* Lo llama el juego cada noche. Devuelve true el sol en que el polvo termina. */
+  /* Lo llama el juego cada noche. Devuelve true la noche en que el polvo termina. */
   tickDust(){
     return this.dustLeft > 0 && --this.dustLeft === 0;
   }
@@ -54,12 +55,12 @@ class SpaceWeather {
     return sol % SpaceWeather.CFG.EVERY === 0;
   }
 
-  /* Escudo necesario para absorber una tormenta. */
+  /* Escudo necesario para absorber una tormenta solar. */
   static need(ev){
     return ev.severity * SpaceWeather.CFG.ABSORB;
   }
 
-  /* Impacto de una tormenta sobre el escudo. Función pura. */
+  /* Impacto de una tormenta solar sobre el escudo. Función pura. */
   static impact(shield, ev){
     const C = SpaceWeather.CFG, S = ev.severity, need = SpaceWeather.need(ev);
     if (shield >= need){
@@ -132,7 +133,9 @@ class SpaceWeather {
 }
 
 SpaceWeather.CFG = {
-  EVERY: 4, STORM: 0.45, DUST: 0.25, DUST_LEN: 2,
+  EVERY: 5,           // cada cuántos soles hay evento
+  STORM: 0.6,         // probabilidad de tormenta solar; el resto son tormentas de arena
+  DUST_LEN: 3,        // noches que dura una tormenta de arena
   ABSORB: 8, SHIELD_HIT: 4,   // tormenta absorbida si escudo >= severidad*ABSORB
 };
 SpaceWeather.liveEvents = null;   // se llena si DONKI responde
