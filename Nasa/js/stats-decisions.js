@@ -5,7 +5,7 @@ const CFG = {
   WIN_SOL: 30,
   START: { power: 50, oxygen: 80, shield: 60, food: 60, maxO2: 100 },
   INCOME: 14, DUST_INCOME: 3,
-  O2_DRAIN: 3, FOOD_DRAIN: 3, SHIELD_DECAY: 2, MIN_O2_GEAR: 30,
+  O2_DRAIN: 10, FOOD_DRAIN: 10, SHIELD_DECAY: 5, MIN_O2_GEAR: 30,
   WARN_LOW: 10,   // umbral del aviso "casi vacío"
 };
 
