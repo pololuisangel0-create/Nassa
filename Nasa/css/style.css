@@ -30,6 +30,19 @@ canvas{
 .fill.shield{background:#7dff8a}
 .fill.food{background:#ff9d3b}
 .cap{position:absolute; top:0; bottom:0; right:0; background:rgba(0,0,0,.55)}
+
+/* Marcas cada 10 unidades (escala 0-100) sobre las 4 barras.
+   Cada marca mide 2px: una oscura y una clara, para que se vea tanto
+   sobre el relleno de color como sobre el fondo vacío. Quedan por encima
+   de .cap (la zona oscura del límite de oxígeno). */
+.track::after{
+  content:""; position:absolute; inset:0; pointer-events:none; z-index:1;
+  background-image:repeating-linear-gradient(to right,
+    transparent 0, transparent calc(10% - 2px),
+    rgba(0,0,0,.55) calc(10% - 2px), rgba(0,0,0,.55) calc(10% - 1px),
+    rgba(245,224,207,.45) calc(10% - 1px), rgba(245,224,207,.45) 10%);
+}
+
 .val{width:52px; font-size:9px; text-align:right}
 #sci{font-size:9px; color:#c39bff; margin-top:4px}
 #alert{min-height:20px; color:#ff8f6b; font-size:10px; margin:6px 0}
