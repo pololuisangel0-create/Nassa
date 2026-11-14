@@ -6,8 +6,8 @@ const CFG = {
   START: { power: 50, oxygen: 80, shield: 60, food: 60, maxO2: 100 },
   PICKS_PER_SOL: 1,   // acciones permitidas por sol
   INCOME: 14, DUST_INCOME: 3,
-  O2_DRAIN: 3, FOOD_DRAIN: 3, SHIELD_DECAY: 2, MIN_O2_GEAR: 30,
-  WARN_LOW: 10,       // umbral del aviso "casi vacío"
+  O2_DRAIN: 10, FOOD_DRAIN: 10, SHIELD_DECAY: 5, MIN_O2_GEAR: 30,
+  WARN_LOW: 10,   // umbral del aviso "casi vacío"
 };
 
 /* "crops" NO da comida al plantar: la cosecha llega 3 soles después. */
