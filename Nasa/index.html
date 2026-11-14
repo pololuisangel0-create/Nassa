@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Junior Astronaut Mission Trainer — Mars Outpost</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header>
+  <h1 id="gameTitle">JUNIOR ASTRONAUT: MARS OUTPOST</h1>
+  <div class="hudline"><span id="solLine">SOL 1 / 30</span><button id="langBtn">ES</button></div>
+</header>
+
+<main>
+  <canvas id="scene" width="320" height="180"></canvas>
+
+  <section id="hud">
+    <div class="bar" data-k="power"><label>POWER</label><div class="track"><div class="fill power"></div></div><span class="val">0</span></div>
+    <div class="bar" data-k="oxygen"><label>OXYGEN</label><div class="track"><div class="fill oxygen"></div><div class="cap"></div></div><span class="val">0</span></div>
+    <div class="bar" data-k="shield"><label>SHIELD</label><div class="track"><div class="fill shield"></div></div><span class="val">0</span></div>
+    <div id="sci">SCIENCE 0</div>
+    <div id="alert" aria-live="polite"></div>
+  </section>
+
+  <section id="actions">
+    <p id="picks">Actions left this sol: 2</p>
+    <div id="btns"></div>
+    <button id="nextSol">END SOL ▶</button>
+  </section>
+
+  <ul id="log" aria-live="polite"></ul>
+
+  <details id="real">
+    <summary>What's real in this game?</summary>
+    <div id="realBody"></div>
+  </details>
+</main>
+
+<footer>
+  Prototype for the NASA Space Apps Challenge "Build a Junior Astronaut Mission Trainer".
+  Data: NASA DONKI (space weather) · NASA OSDR RadLab (radiation dosimetry). NASA does not endorse this project.
+</footer>
+
+<div id="endScreen" hidden>
+  <div class="card">
+    <h2 id="endTitle">MISSION SUCCESS!</h2>
+    <p id="endStats"></p>
+    <p id="endLearn"></p>
+    <button id="restart">FLY AGAIN ▶</button>
+  </div>
+</div>
+
+<script src="js/i18n.js"></script>
+<script src="js/data.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
