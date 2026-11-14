@@ -1,6 +1,8 @@
 /* Junior Astronaut Mission Trainer — retro Mars outpost prototype.
    The Engine below is DOM-free so it can be smoke-tested with node (node js/game.js).
-   Lose by: oxygen 0 · two dark nights (power 0) · storm-damaged oxygen gear.
+   4 bars: POWER · OXYGEN · SHIELD · FOOD. Any bar at 0 when you end a sol = mission
+   fails, except FOOD which gives you 1 sol of grace. Unshielded solar storms damage
+   the oxygen gear permanently and destroy growing crops.
    UI strings live in js/i18n.js; log entries are stored as {key, vars} pairs. */
 const DATA = (typeof module !== 'undefined')
   ? require('./data.js')
@@ -8,17 +10,18 @@ const DATA = (typeof module !== 'undefined')
 
 const CFG = {
   WIN_SOL: 30,
-  START: { power: 50, oxygen: 80, shield: 60, science: 0, maxO2: 100 },
+  START: { power: 50, oxygen: 80, shield: 60, food: 60, maxO2: 100 },
   INCOME: 14, DUST_INCOME: 3,
-  O2_DRAIN: 3, NO_POWER_DRAIN: 4, SHIELD_DECAY: 2, MIN_O2_GEAR: 30,
+  O2_DRAIN: 3, FOOD_DRAIN: 3, SHIELD_DECAY: 2, MIN_O2_GEAR: 30,
   EVENTS: { EVERY: 4, STORM: 0.45, DUST: 0.25, DUST_LEN: 2 },
   ABSORB: 8, SHIELD_HIT: 4,   // storm absorbed if shield >= severity*ABSORB
+  WARN_LOW: 10,               // "almost empty" warning threshold
 };
 
 const ACTIONS = {
   recycler: { o2:30,  power:-12 },
   shieldUp: { shield:30, power:-20 },
-  science:  { science:15, power:-10, o2:-6, delay:2 },
+  crops:    { food:25, power:-12, o2:-6, delay:3 },   // harvest arrives after 3 sols
 };
 
 const clamp = v => Math.max(0, Math.min(100, v));
@@ -29,8 +32,10 @@ function costOf(a){ return { power:Math.max(0, -(a.power||0)), o2:Math.max(0, -(
 const Engine = {
   newGame(){
     const st = {
-      sol:1, picksLeft:2, dust:0, over:false, won:false, noPower:0, shieldWarned:false,
-      pending:[], history:[], alertKey:'', deck:shuffle(DATA.DONKI_EVENTS.slice()),
+      sol:1, picksLeft:2, dust:0, over:false, won:false,
+      starving:false, warnShield:false, warnPower:false,
+      pending:[], history:[], undo:[], alertKey:'',
+      deck:shuffle(DATA.DONKI_EVENTS.slice()),
       ...CFG.START,
     };
     log(st,'log.intro',{ n: CFG.WIN_SOL });
@@ -46,34 +51,79 @@ const Engine = {
 
   doAction(st,id){
     if (!this.canDo(st,id)) return false;
+    // snapshot (before the change) so the player can cancel this action later
+    st.undo.push({
+      id, power:st.power, oxygen:st.oxygen, shield:st.shield, food:st.food,
+      maxO2:st.maxO2, picksLeft:st.picksLeft,
+      pending: st.pending.map(p => ({ ...p })), histLen: st.history.length,
+    });
     const a = ACTIONS[id];
     st.power  = clamp(st.power  + (a.power ||0));
     st.oxygen = clamp(Math.min(st.oxygen, st.maxO2) + (a.o2||0));
     st.shield = clamp(st.shield + (a.shield||0));
-    if (a.science) st.pending.push({ due: st.sol + a.delay, pts: a.science });
+    st.food   = clamp(st.food   + (a.food  ||0));
+    if (a.delay) st.pending.push({ due: st.sol + a.delay, pts: a.food });
     st.picksLeft--;
     log(st,'log.act',{ id });
     return true;
   },
 
+  // cancel an action: undoes back to (and including) the most recent use of `id`
+  undoAction(st,id){
+    for (let i = st.undo.length-1; i >= 0; i--){
+      if (st.undo[i].id === id){
+        const s = st.undo[i];
+        st.power = s.power; st.oxygen = s.oxygen; st.shield = s.shield;
+        st.food = s.food; st.maxO2 = s.maxO2; st.picksLeft = s.picksLeft;
+        st.pending = s.pending;
+        st.history = st.history.slice(st.history.length - s.histLen);
+        st.undo = st.undo.slice(0, i);   // later actions depended on this one
+        return true;
+      }
+    }
+    return false;
+  },
+
+  activeActions(st){ return new Set(st.undo.map(e => e.id)); },
+
   nextSol(st){
     if (st.over) return;
-    st.alertKey = '';
+    st.undo = [];
     st.picksLeft = 2;
+    st.alertKey = '';
 
-    // dark night: empty batteries cost extra oxygen and can end the mission
-    const dark = st.power <= 0;
-    st.noPower = dark ? st.noPower + 1 : 0;
-    if (st.noPower >= 2){ st.over = true; log(st,'log.failPower'); return; }
+    // "almost empty" warnings (once per low episode, cleared when it recovers)
+    if (st.shield > CFG.WARN_LOW) st.warnShield = false;
+    if (st.power  > CFG.WARN_LOW) st.warnPower  = false;
+    if (st.shield <= CFG.WARN_LOW && st.shield > 0 && !st.warnShield){ st.warnShield = true; log(st,'log.lowShield'); }
+    if (st.power  <= CFG.WARN_LOW && st.power  > 0 && !st.warnPower ){ st.warnPower  = true; log(st,'log.lowPower'); }
 
-    // passive life support
+    // end-of-turn survival check: no system may be dead at nightfall
+    if (st.shield <= 0){ st.over = true; log(st,'log.failShield'); return; }
+    if (st.power  <= 0){ st.over = true; log(st,'log.failPower'); return; }
+    if (st.oxygen <= 0){ st.over = true; log(st,'log.failO2'); return; }
+    if (st.food <= 0){
+      if (st.starving){ st.over = true; log(st,'log.failFood'); return; }
+      st.starving = true;   // 1 sol of grace: fix it before the next nightfall
+      log(st,'log.noFood');
+    } else st.starving = false;
+
+    // the night passes
     st.power  = clamp(st.power  + (st.dust>0 ? CFG.DUST_INCOME : CFG.INCOME));
-    st.oxygen = clamp(Math.min(st.oxygen, st.maxO2) - CFG.O2_DRAIN - (dark ? CFG.NO_POWER_DRAIN : 0));
+    st.oxygen = clamp(Math.min(st.oxygen, st.maxO2) - CFG.O2_DRAIN);
     st.shield = clamp(st.shield - CFG.SHIELD_DECAY);
+    st.food   = clamp(st.food   - CFG.FOOD_DRAIN);   // the crew eats every sol
     if (st.dust>0 && --st.dust===0) log(st,'log.dustEnd');
-    if (dark) log(st,'log.dark');
-    if (st.shield===0 && !st.shieldWarned){ log(st,'log.shieldDown'); st.shieldWarned = true; }
-    if (st.shield>0) st.shieldWarned = false;
+
+    // harvests that ripened overnight
+    st.pending = st.pending.filter(p => {
+      if (p.due === st.sol){
+        st.food = clamp(st.food + p.pts);
+        log(st,'log.cropsDone',{ n: p.pts });
+        return false;
+      }
+      return true;
+    });
 
     // scheduled space-weather event (real NASA DONKI records)
     if (st.sol % CFG.EVENTS.EVERY === 0){
@@ -90,19 +140,7 @@ const Engine = {
       if (!st.deck.length) st.deck = shuffle(DATA.DONKI_EVENTS.slice());
     }
 
-    // science data arrives on Earth after the real Mars comm delay
-    st.pending = st.pending.filter(p => {
-      if (p.due === st.sol){
-        st.science += p.pts;
-        log(st,'log.science',{ n: p.pts });
-        return false;
-      }
-      return true;
-    });
-
-    // end conditions
-    if (st.oxygen <= 0){ st.over = true; log(st,'log.failO2'); }
-    else if (st.sol >= CFG.WIN_SOL){ st.over = true; st.won = true; }
+    if (st.sol >= CFG.WIN_SOL){ st.over = true; st.won = true; }
     else st.sol++;
   },
 
@@ -113,18 +151,20 @@ const Engine = {
       st.alertKey = 'alert.absorbed';
       log(st,'log.absorbed',{ date: ev.date, hit: S*CFG.SHIELD_HIT, ev });
     } else {
-      // unshielded: the blast damages the oxygen equipment permanently
+      // unshielded: the blast damages the oxygen gear permanently and kills crops
       const o2Hit = Math.max(S*4, Math.floor((need - before) * 0.6));
       st.maxO2 = Math.max(CFG.MIN_O2_GEAR, st.maxO2 - o2Hit);
       st.oxygen = clamp(Math.min(st.oxygen, st.maxO2) - o2Hit);
       st.shield = 0;
-      st.shieldWarned = true;
       st.alertKey = 'alert.storm';
+      const hadCrops = st.pending.length > 0;
+      st.pending = [];
       log(st,'log.stormHit',{ date: ev.date, max: st.maxO2, o2: o2Hit, ev });
+      if (hadCrops) log(st,'log.cropsLost');
     }
   },
 
-  score(st){ return st.science*10 + st.oxygen; },
+  score(st){ return Math.round(st.oxygen + st.food + st.shield); },
 };
 
 /* ---------- browser UI (skipped under node) ---------- */
@@ -185,18 +225,26 @@ if (typeof document !== 'undefined') {
   function render(){
     $('#gameTitle').textContent = t('title');
     $('#solLine').textContent = t('sol',{ n:st.sol, total:CFG.WIN_SOL }) + (st.dust>0 ? t('dust') : '');
-    ['power','oxygen','shield'].forEach(k => {
+    ['power','oxygen','shield','food'].forEach(k => {
       const bar = document.querySelector('.bar[data-k="'+k+'"]');
       bar.querySelector('label').textContent = t(k);
       bar.querySelector('.fill').style.width = st[k]+'%';
       bar.querySelector('.val').textContent = Math.round(st[k]);
     });
-    document.querySelector('.cap').style.left = st.maxO2+'%';
-    $('#sci').textContent = t('science')+' '+st.science + t('inTransit',{ n: st.pending.reduce((n,p)=>n+p.pts,0) });
+    const cap = document.querySelector('.cap');
+    if (cap) cap.style.left = st.maxO2+'%';
+    const due = st.pending.length ? Math.min(...st.pending.map(p => p.due)) : 0;
+    $('#crops').textContent = st.pending.length
+      ? t('cropsLine',{ n: st.pending.length, d: Math.max(1, due - st.sol) }) : '';
     $('#alert').textContent = st.alertKey ? t(st.alertKey) : '';
     $('#picks').textContent = t('picks',{ n:st.picksLeft });
     $('#nextSol').textContent = t('endSol');
-    document.querySelectorAll('#btns button').forEach(b => { b.disabled = !Engine.canDo(st, b.dataset.act); });
+    const active = Engine.activeActions(st);
+    document.querySelectorAll('#btns button').forEach(b => {
+      const id = b.dataset.act;
+      b.classList.toggle('active', active.has(id));
+      b.disabled = !Engine.canDo(st,id) && !active.has(id);  // an active action can always be cancelled
+    });
     $('#log').innerHTML = st.history.map(m => '<li>'+renderMsg(m)+'</li>').join('');
     drawScene();
     if (st.over) showEnd();
@@ -208,8 +256,8 @@ if (typeof document !== 'undefined') {
     title.className = st.won ? 'success' : 'failed';
     $('#endStats').textContent =
       t('end.sols',{ n: st.won ? CFG.WIN_SOL : st.sol-1 })+'\n'+
-      t('end.science',{ n: st.science, pts: st.science*10 })+'\n'+
       t('end.o2',{ n: Math.round(st.oxygen), max: st.maxO2 })+'\n'+
+      t('end.food',{ n: Math.round(st.food) })+'\n'+
       t('end.score',{ n: Engine.score(st) });
     $('#endLearn').textContent = st.won
       ? t('end.winLearn')
@@ -222,7 +270,11 @@ if (typeof document !== 'undefined') {
   for (const id of Object.keys(ACTIONS)){
     const b = document.createElement('button');
     b.dataset.act = id;
-    b.onclick = () => { if (Engine.doAction(st,id)) render(); };
+    b.onclick = () => {
+      if (Engine.activeActions(st).has(id)) Engine.undoAction(st,id);  // click again = cancel
+      else Engine.doAction(st,id);
+      render();
+    };
     btns.appendChild(b);
   }
   function buildActionLabels(){
@@ -285,23 +337,32 @@ if (typeof document !== 'undefined') {
     }
     return s;
   }
-  const greedy = s => s.shield < 70 ? 'shieldUp' : s.oxygen < 60 ? 'recycler' : s.power >= 40 ? 'science' : s.oxygen < 85 ? 'recycler' : null;
-  const careless = s => s.oxygen < 55 ? 'recycler' : s.power >= 40 ? 'science' : null;
+  const careful = s => s.shield < 70 ? 'shieldUp' : s.food < 55 ? 'crops' : s.oxygen < 60 ? 'recycler' : s.power >= 40 ? 'crops' : s.oxygen < 85 ? 'recycler' : null;
+  const careless = s => s.oxygen < 55 ? 'recycler' : null;   // never shields, never plants
 
   for (const [id,a] of Object.entries(ACTIONS)){
     const c = costOf(a);
     console.assert(c.power>0 || c.o2>0, id+' must cost something (no free choices)');
   }
-  let wins = 0, aMax = 0, bMax = 0, bWins = 0, N = 100;
+
+  // cancel feature: undo restores the exact previous state
+  const u = Engine.newGame();
+  const p0 = u.power, o0 = u.oxygen, pl0 = u.picksLeft, h0 = u.history.length;
+  Engine.doAction(u,'recycler');
+  Engine.undoAction(u,'recycler');
+  console.assert(u.power===p0 && u.oxygen===o0 && u.picksLeft===pl0 && u.history.length===h0, 'undo must restore the previous state');
+
+  let wins = 0, aMax = 0, bMax = 0, aFood = 0, bFood = 0, bWins = 0, N = 100;
   for (let i = 0; i < N; i++){
-    const a = simulate(greedy), b = simulate(careless);
-    aMax += a.maxO2; bMax += b.maxO2;
+    const a = simulate(careful), b = simulate(careless);
+    aMax += a.maxO2; bMax += b.maxO2; aFood += a.food; bFood += b.food;
     if (a.won) wins++;
     if (b.won) bWins++;
   }
-  console.assert(wins / N >= 0.7, 'greedy should win most runs (' + wins + '/' + N + ')');
-  console.assert(bWins / N < 0.3, 'never-shield strategy should fail most runs (' + bWins + '/' + N + ')');
-  console.assert(aMax / N > bMax / N, 'greedy should keep gear healthier than careless');
+  console.assert(wins / N >= 0.7, 'careful play should win most runs (' + wins + '/' + N + ')');
+  console.assert(bWins / N < 0.3, 'no-food no-shield strategy should fail most runs (' + bWins + '/' + N + ')');
+  console.assert(aFood / N > bFood / N, 'planting should keep food higher than not planting');
+  console.assert(aMax / N > bMax / N, 'shielding should keep gear healthier than not shielding');
 
   const s = Engine.newGame();
   const ids = Object.keys(ACTIONS);
@@ -310,10 +371,10 @@ if (typeof document !== 'undefined') {
     if (ok.length) Engine.doAction(s, ok[(Math.random()*ok.length)|0]);
     else Engine.nextSol(s);
   }
-  console.assert([s.power,s.oxygen,s.shield,s.maxO2].every(Number.isFinite), 'no NaN under random play');
+  console.assert([s.power,s.oxygen,s.shield,s.food,s.maxO2].every(Number.isFinite), 'no NaN under random play');
 
-  console.log('Self-tests: greedy won ' + wins + '/' + N + ' (avg maxO2 ' + Math.round(aMax / N) +
-              ') | careless won ' + bWins + '/' + N + ' (avg maxO2 ' + Math.round(bMax / N) + ') | random ok');
+  console.log('Self-tests: careful won ' + wins + '/' + N + ' (avg maxO2 ' + Math.round(aMax/N) + ', avg food ' + Math.round(aFood/N) +
+              ') | careless won ' + bWins + '/' + N + ' (avg food ' + Math.round(bFood/N) + ') | undo ok | random ok');
 }
 
 if (typeof module !== 'undefined') module.exports = { Engine, ACTIONS, CFG };

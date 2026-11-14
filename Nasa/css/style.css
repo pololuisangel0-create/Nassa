@@ -28,6 +28,7 @@ canvas{
 .fill.power{background:#ffd93b}
 .fill.oxygen{background:#4dc3ff}
 .fill.shield{background:#7dff8a}
+.fill.food{background:#ff9d3b}
 .cap{position:absolute; top:0; bottom:0; right:0; background:rgba(0,0,0,.55)}
 .val{width:52px; font-size:9px; text-align:right}
 #sci{font-size:9px; color:#c39bff; margin-top:4px}
@@ -41,6 +42,8 @@ button{
 }
 button small{display:block; color:var(--dim); font-size:8px; margin-top:4px}
 button:disabled{opacity:.35; cursor:default}
+button.active{background:#5d2c14; border-color:#ffd93b}
+button.active small{color:#ffd93b}
 button:not(:disabled):active{transform:translate(2px,2px)}
 #nextSol{background:#5d2c14; border-color:#ffb14d; color:#ffd93b; width:100%; max-width:640px}
 

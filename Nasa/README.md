@@ -12,13 +12,14 @@ Dev check: `node js/game.js` runs engine self-tests (balance + no-NaN + "no free
 
 ## How it plays
 
-- Survive **30 sols** (a sol is one Martian day, 24h 37m) keeping three bars healthy.
-- **3 core resources:** POWER, OXYGEN, SHIELD — there is no crew bar; the crew lives or dies with these three.
-- **You can lose three ways:** oxygen hits 0 · power stays at 0 for two dark nights (life support shuts down) · an unshielded solar storm destroys your oxygen gear permanently (the blue bar's dark cap shows the lost capacity).
-- Each sol pick up to 2 actions. **Every action costs a different resource** — saving power today can cost oxygen tomorrow. There is no free choice.
-- Every 4 sols, space weather strikes using **real NASA solar-storm records**: a real flare/CME with its real date. Strong shield absorbs it; weak shield damages the oxygen equipment forever.
+- Survive **30 sols** (a sol is one Martian day, 24h 37m) keeping four bars healthy.
+- **4 core resources:** POWER, OXYGEN, SHIELD, FOOD.
+- **Any bar at 0 when you end a sol = mission over** — with one mercy: at FOOD 0 you get **1 sol** to get food before the crew starves.
+- Each sol pick up to **2 actions**. **Every action costs a different resource** — saving power today can cost oxygen tomorrow. There is no free choice.
+- **Changed your mind? Click the highlighted action again to cancel it** and pick another (costs are refunded, the sol is not spent).
+- **Grow Crops** plants food that ripens **3 sols later** — plan your harvests; the crew eats 3 food every sol.
+- Every 4 sols, space weather strikes using **real NASA solar-storm records**: a real flare/CME with its real date. Strong shield absorbs it; weak shield damages the oxygen equipment forever (dark cap on the blue bar) and destroys your growing crops.
 - Dust storms (real Mars science) cut solar power for 2 sols.
-- Science scans pay out **2 sols later** — Mars radio delay is real (4–24 min one-way on Mars, compressed for play).
 
 ## Language
 
