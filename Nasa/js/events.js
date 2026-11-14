@@ -14,6 +14,7 @@ class SpaceWeather {
   constructor(rng = Math.random){
     this.rng = rng;
     this.dustLeft = 0;
+    this.lastEv = null;   // último evento sorteado (para no repetirlo seguido)
     const live = SpaceWeather.liveEvents;
     this.pool = live || WEATHER_DATA.DONKI_EVENTS;
     this.source = live ? 'live' : 'archived';
@@ -28,23 +29,32 @@ class SpaceWeather {
     this.pool = events;
     this.source = source;
     this.deck = this._shuffled();
+    this.lastEv = null;
     return true;
   }
 
   /* Sortea el evento de una noche de evento. Solo hay dos tipos:
      { type:'radiation', ev } (tormenta solar real) o { type:'dust' } (tormenta de arena).
      Función sin efectos secundarios: el polvo empieza al aplicarse (startDust). */
-  draw(){
+  draw(opts = {}){
     const C = SpaceWeather.CFG;
-    if (this.rng() < C.STORM){
-      if (!this.deck.length) this.deck = this._shuffled();
-      return { type: 'radiation', ev: this.deck.pop() };
+    // con polvo aún activo no puede salir otra tormenta de polvo encima: se fuerza solar
+    if (opts.noDust || this.rng() < C.STORM){
+      return { type: 'radiation', ev: this._nextEvent() };
     }
     return { type: 'dust' };
   }
 
-  /* Se llama cuando la tormenta de arena empieza de verdad, no al pronosticarla. */
-  startDust(){ this.dustLeft = SpaceWeather.CFG.DUST_LEN; }
+  /* ¿Seguirá habiendo polvo después de `nights` noches más? (cada noche descuenta 1) */
+  dustActiveAfter(nights){
+    return this.dustLeft - nights > 0;
+  }
+
+  /* Se llama cuando la tormenta de arena empieza de verdad, no al pronosticarla.
+     Nunca se acumula: como mucho se renueva a DUST_LEN. */
+  startDust(){
+    this.dustLeft = Math.max(this.dustLeft, SpaceWeather.CFG.DUST_LEN);
+  }
 
   /* Lo llama el juego cada noche. Devuelve true la noche en que el polvo termina. */
   tickDust(){
@@ -122,6 +132,19 @@ class SpaceWeather {
     }
   }
 
+  /* Saca el siguiente evento del mazo. Al rebarajar, evita que salga el mismo que el anterior. */
+  _nextEvent(){
+    if (!this.deck.length){
+      this.deck = this._shuffled();
+      const top = this.deck.length - 1;
+      if (this.deck.length > 1 && this.deck[top] === this.lastEv){
+        this.deck.unshift(this.deck.pop());   // manda el repetido al fondo
+      }
+    }
+    this.lastEv = this.deck.pop();
+    return this.lastEv;
+  }
+
   _shuffled(){
     const a = this.pool.slice();
     for (let i = a.length - 1; i > 0; i--){
@@ -134,8 +157,8 @@ class SpaceWeather {
 
 SpaceWeather.CFG = {
   EVERY: 5,           // cada cuántos soles hay evento
-  STORM: 0.6,         // probabilidad de tormenta solar; el resto son tormentas de arena
-  DUST_LEN: 3,        // noches que dura una tormenta de arena
+  STORM: 0.4,         // probabilidad de tormenta solar; el resto son tormentas de arena
+  DUST_LEN: 3,        // soles que dura una tormenta de polvo
   ABSORB: 8, SHIELD_HIT: 4,   // tormenta absorbida si escudo >= severidad*ABSORB
 };
 SpaceWeather.liveEvents = null;   // se llena si DONKI responde

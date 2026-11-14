@@ -265,7 +265,7 @@ details[open] summary{margin-bottom:8px}
 .forecast-card{
   background:#1e1b2e;
   color:#f5f5f5;
-  border:2px solid var(--danger);
+  border:2px solid var(--accent, var(--danger));
   max-width:420px;
   width:100%;
   padding:16px;
@@ -353,3 +353,42 @@ details[open] summary{margin-bottom:8px}
 
 /* quitar la insignia de fuente si quedara algún resto */
 #srcBadge{display:none}
+/* ---------- aviso: dos looks distintos según el tipo de tormenta ---------- */
+.forecast-card{--accent:var(--danger)}
+.forecast-card[data-type="radiation"]{--accent:#ff5252;background:#1e1b2e;box-shadow:0 0 28px rgba(255,82,82,.35)}
+.forecast-card[data-type="dust"]{--accent:#ff9d3b;background:#2a1a10;box-shadow:0 0 28px rgba(255,157,59,.30)}
+.forecast-card h2{margin:0;font-size:13px;line-height:1.5;color:var(--accent)}
+.forecast-card .pip.target{border-color:var(--accent);color:var(--accent)}
+.forecast-card .btn-end{border-color:var(--accent);color:var(--accent)}
+.forecast-card[data-type="radiation"] .fc-note:last-of-type,
+.forecast-card[data-type="dust"] #fcText{
+  border-left:3px solid var(--accent);
+  padding-left:8px;
+}
+
+/* ilustración: se muestra solo la del tipo activo */
+#fcArt[data-type="radiation"] .art-dust,
+#fcArt[data-type="dust"] .art-solar{display:none}
+
+.dc-sun{fill:#8a5a2b;opacity:.65}
+.dc-mars{fill:#8a3a12}
+.dc-hab{fill:#a89a8c}
+.dc-haze{fill:#c98a4a;opacity:.28}
+.dc-wind{
+  fill:none;
+  stroke:#ffb870;
+  stroke-width:3;
+  stroke-linecap:round;
+  stroke-dasharray:18 10;
+  animation:flow 1.2s linear infinite;
+}
+.dc-wind.d2{animation-duration:.9s;stroke:#e8a05a}
+.dc-wind.d3{animation-duration:1.5s;stroke:#d98f4a}
+.dc-grain{fill:#ffcf9a;animation:drift 2.2s linear infinite}
+.dc-grain.g2{animation-duration:1.7s}
+.dc-grain.g3{animation-duration:2.8s}
+@keyframes drift{
+  from{transform:translateX(-24px);opacity:0}
+  20%{opacity:1}
+  to{transform:translateX(36px);opacity:0}
+}
