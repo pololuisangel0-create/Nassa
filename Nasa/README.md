@@ -34,7 +34,7 @@ css/style.css         retro styling
 js/i18n.js            EN/ES text dictionary + language helpers
 js/data.js            curated real NASA data (DONKI events, RadLab reading, facts)
 js/game.js            pure engine (node-testable) + browser UI
-assets/sprites/       16×16 pixel-art SVG sprites (sun, flare, hab, solar, rover)
+assets/sprites/       pixel-art SVG sprites (sun, warning, hab, hab_crops, solar, rover)
 README.md             this file
 ```
 
@@ -56,9 +56,10 @@ README.md             this file
 
 ## Swapping in your own sprites later
 
-Drop pixel-art PNGs into `assets/sprites/` with the same names (`sun`, `flare`, `hab`, `solar`,
-`rover`). The loader draws each at 4× scale assuming 16×16 art; adjust the scale in
-`drawSprite()` calls in `js/game.js` if your art is bigger.
+Replace the files in `assets/sprites/` keeping the same names (`sun`, `warning`, `hab`, `hab_crops`,
+`solar`, `rover`). Each sprite is drawn 1:1 on the 320×180 canvas, so its size must match
+`SPRITE_SIZE` in `js/game.js`, and its position is set in `drawScene()`.
+`hab_crops` is shown instead of `hab` while crops are growing; `warning` replaces `sun` during a solar storm.
 
 ## Roadmap (add/fix later)
 

@@ -1,0 +1,394 @@
+/* ==========================================================
+   Junior Astronaut — estilos
+   Estructura: variables · base · cabecera · paneles · barras
+   · botones · registro · overlays · aviso · utilidades
+   ========================================================== */
+
+/* ---------- variables ---------- */
+:root{
+  --bg:#160b07;
+  --panel:#2b1710;
+  --panel-2:#3b2013;
+  --edge:#7a3b22;
+  --edge-hi:#ffb14d;
+  --ink:#f5e0cf;
+  --dim:#c9a68c;
+  --gold:#ffd93b;
+  --danger:#ff5252;
+  --ok:#7dff8a;
+  --warn:#ffb74d;
+  --info:#4fc3f7;
+  --radius:4px;
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --fast:.18s;
+  --slow:.4s;
+}
+
+/* ---------- base ---------- */
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+
+body{
+  margin:0;
+  background:
+    radial-gradient(ellipse at top, #2a1409 0%, var(--bg) 60%) fixed;
+  color:var(--ink);
+  font-family:'Press Start 2P','Courier New',monospace;
+  font-size:12px;
+  line-height:1.7;
+  min-height:100vh;
+}
+
+button{
+  font:inherit;
+  font-size:10px;
+  color:var(--ink);
+  background:var(--panel-2);
+  border:3px solid var(--edge);
+  border-radius:var(--radius);
+  padding:8px 10px;
+  cursor:pointer;
+  transition:transform var(--fast) var(--ease),
+             background var(--fast),
+             border-color var(--fast),
+             box-shadow var(--fast);
+}
+button:hover:not(:disabled){
+  border-color:var(--edge-hi);
+  background:#4a2716;
+  box-shadow:0 0 0 2px rgba(255,177,77,.15);
+  transform:translateY(-1px);
+}
+button:active:not(:disabled){transform:translateY(1px)}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+button:disabled{opacity:.35;cursor:default}
+
+/* ---------- cabecera ---------- */
+.top{text-align:center;padding:18px 8px 8px}
+h1{
+  font-size:14px;
+  color:var(--gold);
+  margin:0 0 10px;
+  letter-spacing:1px;
+  text-shadow:0 2px 0 #5a3a00;
+}
+.hudline{display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap}
+#solLine{font-size:10px;color:var(--dim)}
+.btn-small{font-size:9px;padding:5px 9px}
+
+/* ---------- layout ---------- */
+.layout{max-width:720px;margin:0 auto;padding:12px;display:grid;gap:12px}
+
+.panel{
+  background:var(--panel);
+  border:3px solid var(--edge);
+  border-radius:var(--radius);
+  padding:12px;
+  box-shadow:0 4px 0 rgba(0,0,0,.35);
+}
+
+/* ---------- escena ---------- */
+.scene-panel{padding:6px}
+canvas{
+  display:block;
+  width:100%;
+  height:auto;
+  image-rendering:pixelated;
+  border:3px solid var(--edge);
+  background:#000;
+  border-radius:2px;
+  transition:filter var(--slow) var(--ease);
+}
+
+/* ---------- barras de recursos ---------- */
+.bar{display:flex;align-items:center;gap:8px;margin:7px 0}
+.bar label{width:80px;font-size:9px;color:var(--dim)}
+.track{
+  flex:1;
+  height:16px;
+  border:3px solid var(--edge);
+  background:#120806;
+  position:relative;
+  overflow:hidden;
+}
+.fill{
+  height:100%;
+  width:50%;
+  transition:width var(--slow) var(--ease);
+}
+.fill.power{background:var(--gold)}
+.fill.oxygen{background:#4dc3ff}
+.fill.shield{background:#7dff8a}
+.fill.food{background:#ff9d3b}
+
+/* límite de oxígeno (zona bloqueada) */
+.cap{position:absolute;top:0;bottom:0;right:0;background:rgba(0,0,0,.55)}
+
+/* marcas cada 10 unidades: una oscura y una clara para verse sobre cualquier color */
+.track::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:1;
+  background-image:repeating-linear-gradient(to right,
+    transparent 0, transparent calc(10% - 2px),
+    rgba(0,0,0,.55) calc(10% - 2px), rgba(0,0,0,.55) calc(10% - 1px),
+    rgba(245,224,207,.45) calc(10% - 1px), rgba(245,224,207,.45) 10%);
+}
+
+/* al cambiar un valor, la cifra destella */
+.val{width:52px;font-size:9px;text-align:right;transition:color var(--slow)}
+.bar:hover .val{color:var(--gold)}
+
+/* ---------- estado y alertas ---------- */
+.status-line{line-height:1.6;margin-top:6px;font-size:10px;color:var(--dim);min-height:0}
+.status-line:empty{display:none}
+.status-line .warn{color:var(--danger);font-weight:bold;animation:pulse 1.4s ease-in-out infinite}
+
+.alert{min-height:20px;color:#ff8f6b;font-size:10px;margin:6px 0}
+.alert:empty{display:none}
+
+@keyframes pulse{
+  0%,100%{opacity:1}
+  50%{opacity:.55}
+}
+
+/* ---------- acciones ---------- */
+#actions p{margin:0 0 8px;font-size:10px;color:var(--dim)}
+.btn-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.btn-grid button{flex:1 1 180px;text-align:left}
+.btn-grid button small{
+  display:block;
+  color:var(--dim);
+  font-size:8px;
+  margin-top:4px;
+  line-height:1.5;
+}
+.btn-grid button.active{
+  background:#5d2c14;
+  border-color:var(--gold);
+  box-shadow:0 0 12px rgba(255,217,59,.25);
+}
+.btn-grid button.active small{color:var(--gold)}
+
+.btn-end{
+  width:100%;
+  background:#5d2c14;
+  border-color:var(--edge-hi);
+  color:var(--gold);
+  font-size:11px;
+  padding:10px;
+}
+.btn-end:hover:not(:disabled){background:#6e3418;box-shadow:0 0 14px rgba(255,177,77,.3)}
+
+/* ---------- registro ---------- */
+.log{
+  list-style:none;
+  max-height:180px;
+  overflow:auto;
+  margin:0;
+  padding:0 4px 0 0;
+  font-size:9px;
+  color:var(--dim);
+}
+.log li{
+  padding:5px 0;
+  border-bottom:1px dashed rgba(122,59,34,.5);
+  animation:slideIn .35s var(--ease);
+}
+.log li:first-child{color:var(--ink)}
+@keyframes slideIn{
+  from{opacity:0;transform:translateX(-6px)}
+  to{opacity:1;transform:none}
+}
+
+/* ---------- "qué es real" ---------- */
+details summary{cursor:pointer;color:var(--gold);font-size:10px;transition:color var(--fast)}
+details summary:hover{color:#fff1a0}
+details[open] summary{margin-bottom:8px}
+#realBody{font-size:9px}
+#realBody b{color:var(--ok)}
+#realBody ul{padding-left:18px}
+
+/* ---------- pie ---------- */
+.foot{
+  max-width:720px;
+  margin:18px auto 24px;
+  text-align:center;
+  font-size:8px;
+  color:#8a6a55;
+  padding:0 12px;
+  line-height:1.8;
+}
+
+/* ---------- etiqueta de fuente de datos ---------- */
+.src{
+  font-size:9px;
+  padding:3px 7px;
+  border:2px solid currentColor;
+  border-radius:var(--radius);
+  white-space:nowrap;
+}
+.src.live{color:var(--ok)}
+.src.archived{color:var(--warn)}
+.src.loading{color:#aaa;animation:pulse 1.2s ease-in-out infinite}
+
+/* ---------- overlays (velo + tarjeta) ---------- */
+.overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.75);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:10;
+  padding:12px;
+  animation:fadeIn var(--slow) var(--ease);
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+.card{
+  background:var(--panel);
+  border:3px solid var(--edge);
+  border-radius:6px;
+  padding:18px;
+  box-shadow:0 0 24px rgba(0,0,0,.6);
+  animation:popIn var(--slow) var(--ease);
+}
+@keyframes popIn{
+  from{opacity:0;transform:translateY(12px) scale(.97)}
+  to{opacity:1;transform:none}
+}
+
+/* ---------- aviso de pronóstico ---------- */
+.forecast-card{
+  background:#1e1b2e;
+  color:#f5f5f5;
+  border:2px solid var(--accent, var(--danger));
+  max-width:420px;
+  width:100%;
+  padding:16px;
+}
+.fc-when{font-size:11px;opacity:.85;margin:4px 0 8px}
+
+.fc-track{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:8px 0}
+.pip{
+  min-width:34px;
+  padding:4px 6px;
+  border:1px solid #888;
+  border-radius:3px;
+  text-align:center;
+  font-size:11px;
+  transition:transform var(--fast) var(--ease);
+}
+.pip.now{background:var(--info);color:#000;border-color:var(--info)}
+.pip.target{border-color:var(--danger);color:#ff8a65;font-size:14px}
+.pip.target:hover{transform:scale(1.12)}
+
+#fcArt{width:100%;height:auto;display:block;margin:8px 0}
+.fc-glow{fill:none;stroke:#ffb300;stroke-opacity:.35;stroke-width:6}
+.fc-sun{fill:#ffb300}
+.fc-mars{fill:#c1440e}
+.fc-hab{fill:#ddd}
+#fcWave{
+  fill:none;
+  stroke:var(--danger);
+  stroke-width:3;
+  stroke-dasharray:6 6;
+  animation:flow 1s linear infinite;
+}
+#fcArt[data-type="dust"] #fcWave{stroke:var(--warn)}
+#fcArt[data-type="quiet"] #fcWave{display:none}
+@keyframes flow{to{stroke-dashoffset:-12}}
+
+.fc-event,.fc-note{font-size:12px;margin:6px 0}
+.fc-src{font-size:10px;opacity:.7}
+.fc-actions{display:flex;gap:8px;justify-content:center;margin-top:10px}
+.fc-disclaimer{font-size:10px;opacity:.7;margin-top:10px}
+
+/* ---------- pantalla final ---------- */
+.end-card{max-width:440px;text-align:center}
+#endTitle{font-size:16px;margin:0 0 12px}
+#endTitle.success{color:var(--ok)}
+#endTitle.failed{color:#ff6b6b}
+#endStats{font-size:10px;white-space:pre-line}
+#endLearn{font-size:9px;color:var(--ok)}
+
+/* ---------- respuesta a pantallas pequeñas ---------- */
+@media (max-width:480px){
+  h1{font-size:11px}
+  .bar label{width:64px;font-size:8px}
+  .btn-grid button{flex-basis:100%}
+}
+
+/* ---------- movimiento reducido (accesibilidad) ---------- */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+  }
+}
+/* medidor de escudo del aviso */
+.gauge{margin:10px 0 4px}
+.gauge-track{position:relative;height:14px;background:#333;border-radius:3px;overflow:hidden}
+.gauge-fill{height:100%;width:0;background:var(--info);transition:width var(--slow) var(--ease)}
+.gauge-mark{position:absolute;top:-4px;bottom:-4px;width:3px;background:var(--danger);transition:left var(--slow) var(--ease)}
+.gauge-legend{font-size:11px;margin:6px 0 2px}
+.verdict{font-size:11px;margin:4px 0}
+.verdict.ok{color:var(--ok)}
+.verdict.bad{color:#ff8a65}
+/* ---------- eventos climáticos: mismo tamaño, independientes ---------- */
+.events{display:grid;gap:4px;margin-top:8px}
+.event-line{
+  font-size:10px;
+  line-height:1.6;
+  font-weight:bold;
+  padding:4px 0;
+}
+.event-line.solar{color:var(--danger)}
+.event-line.dust{color:#ff9d3b}
+.event-line:not([hidden]) + .event-line:not([hidden]){margin-top:0}
+
+/* quitar la insignia de fuente si quedara algún resto */
+#srcBadge{display:none}
+/* ---------- aviso: dos looks distintos según el tipo de tormenta ---------- */
+.forecast-card{--accent:var(--danger)}
+.forecast-card[data-type="radiation"]{--accent:#ff5252;background:#1e1b2e;box-shadow:0 0 28px rgba(255,82,82,.35)}
+.forecast-card[data-type="dust"]{--accent:#ff9d3b;background:#2a1a10;box-shadow:0 0 28px rgba(255,157,59,.30)}
+.forecast-card h2{margin:0;font-size:13px;line-height:1.5;color:var(--accent)}
+.forecast-card .pip.target{border-color:var(--accent);color:var(--accent)}
+.forecast-card .btn-end{border-color:var(--accent);color:var(--accent)}
+.forecast-card[data-type="radiation"] .fc-note:last-of-type,
+.forecast-card[data-type="dust"] #fcText{
+  border-left:3px solid var(--accent);
+  padding-left:8px;
+}
+
+/* ilustración: se muestra solo la del tipo activo */
+#fcArt[data-type="radiation"] .art-dust,
+#fcArt[data-type="dust"] .art-solar{display:none}
+
+.dc-sun{fill:#8a5a2b;opacity:.65}
+.dc-mars{fill:#8a3a12}
+.dc-hab{fill:#a89a8c}
+.dc-haze{fill:#c98a4a;opacity:.28}
+.dc-wind{
+  fill:none;
+  stroke:#ffb870;
+  stroke-width:3;
+  stroke-linecap:round;
+  stroke-dasharray:18 10;
+  animation:flow 1.2s linear infinite;
+}
+.dc-wind.d2{animation-duration:.9s;stroke:#e8a05a}
+.dc-wind.d3{animation-duration:1.5s;stroke:#d98f4a}
+.dc-grain{fill:#ffcf9a;animation:drift 2.2s linear infinite}
+.dc-grain.g2{animation-duration:1.7s}
+.dc-grain.g3{animation-duration:2.8s}
+@keyframes drift{
+  from{transform:translateX(-24px);opacity:0}
+  20%{opacity:1}
+  to{transform:translateX(36px);opacity:0}
+}
