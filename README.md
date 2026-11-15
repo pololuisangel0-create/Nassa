@@ -1,2 +1,0 @@
-# Nassa
-Hacelo Freddy

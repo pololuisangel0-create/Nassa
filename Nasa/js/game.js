@@ -217,7 +217,7 @@ if (typeof document !== 'undefined') {
   /* Sprites: cada SVG está dibujado a 1 unidad = 1 píxel del canvas (320x180),
      así que se pintan 1:1 y quedan nítidos. [ancho, alto] sirve de respaldo si falla la carga. */
   const SPRITE_SIZE = {
-    sun: [40, 40], warning: [40, 40], hab: [146, 96], hab_crops: [146, 96], solar: [86, 94], rover: [46, 38],
+    sun: [40, 40], hab: [146, 96], hab_crops: [146, 96], solar: [86, 94], rover: [46, 38],
   };
   const sprites = {};
   Object.keys(SPRITE_SIZE).forEach(k => {
@@ -229,39 +229,175 @@ if (typeof document !== 'undefined') {
   });
 
   const cv = $('#scene'), ctx = cv.getContext('2d');
+  const W = 320, H = 180;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let lastFrame = 0;
 
-  function drawSprite(k, x, y){
-    const i = sprites[k], [w, h] = SPRITE_SIZE[k];
-    if (i && i.ok) ctx.drawImage(i, x, y, w, h);
-    else { ctx.fillStyle = '#777'; ctx.fillRect(x, y, w, h); }
+  /* ---------- tormenta de arena: partículas, cortinas y capas de polvo ---------- */
+  const DUST_POWER = { light: .45, moderate: .72, severe: 1 };
+  const GRAIN_COLORS = ['#ffe3bd', '#f7c98f', '#e0a566'];
+
+  const grains = Array.from({ length: 150 }, () => ({
+    x: Math.random() * W, y: Math.random() * H,
+    w: Math.random() < .3 ? 2 : 1,
+    spd: 50 + Math.random() * 150,
+    wob: Math.random() * 6.2832,
+    drift: -8 + Math.random() * 16,
+    a: .25 + Math.random() * .5,
+    c: GRAIN_COLORS[(Math.random() * GRAIN_COLORS.length) | 0],
+  }));
+  const streaks = Array.from({ length: 22 }, () => ({
+    x: Math.random() * W, y: Math.random() * H,
+    len: 12 + Math.random() * 40,
+    spd: 120 + Math.random() * 180,
+    a: .08 + Math.random() * .22,
+  }));
+
+  function updateParticles(t, dt, strength){
+    // el viento sube y baja como una ventolera, no a ritmo de reloj
+    const gust = .55 + .45 * Math.sin(t * .9) * Math.sin(t * .37 + 1.7);
+    const wind = (.7 + strength) * (.75 + .35 * gust);
+
+    for (const g of grains){
+      g.x += g.spd * wind * dt;
+      g.y += (Math.sin(t * 1.8 + g.wob) * 14 + g.drift) * dt;
+      if (g.x > W + 4){ g.x = -4 - Math.random() * 16; g.y = Math.random() * H; }
+      if (g.y < 0) g.y += H; else if (g.y > H) g.y -= H;
+    }
+    for (const s of streaks){
+      s.x += s.spd * wind * dt;
+      if (s.x > W + s.len){ s.x = -s.len; s.y = Math.random() * H; }
+    }
   }
 
-  function drawScene(){
+  function dustBand(t, yBase, amp, freq, speed, color, alpha, strength){
+    ctx.globalAlpha = alpha * strength;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    for (let x = 0; x <= W; x += 8){
+      const y = yBase
+        + Math.sin(x * freq + t * speed) * amp
+        + Math.sin(x * freq * .53 - t * speed * 1.6) * amp * .5;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawDustBack(t, strength){
+    if (!strength) return;
+    dustBand(t, 54, 7, .045, .7, '#c98d52', .24, strength);
+    dustBand(t, 82, 9, .035, .9, '#b9793f', .20, strength);
+
+    const layers = [
+      { y: 52,  h: 26, spd: 6,  a: .16, c: '#d9a066' },
+      { y: 84,  h: 34, spd: 11, a: .19, c: '#c98d52' },
+      { y: 118, h: 38, spd: 17, a: .22, c: '#b9793f' },
+    ];
+    for (let i = 0; i < layers.length; i++){
+      const L = layers[i];
+      const period = 150 + i * 26;
+      const off = (t * L.spd * (.6 + strength)) % period;
+      ctx.globalAlpha = L.a * (.5 + .5 * strength);
+      ctx.fillStyle = L.c;
+      for (let x = -period - off; x < W + period; x += period){
+        ctx.beginPath();
+        ctx.ellipse(x + period * .5,  L.y + Math.sin(t + i) * 3, period * .42, L.h * .55, 0, 0, 6.2832);
+        ctx.ellipse(x + period * .82, L.y + 5, period * .32, L.h * .42, 0, 0, 6.2832);
+        ctx.ellipse(x + period * .18, L.y + 6, period * .30, L.h * .40, 0, 0, 6.2832);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawDustFront(t, strength){
+    for (const g of grains){
+      ctx.globalAlpha = g.a * (.5 + .5 * strength);
+      ctx.fillStyle = g.c;
+      ctx.fillRect(Math.round(g.x), Math.round(g.y), g.w, 1);
+    }
+    for (const s of streaks){
+      ctx.globalAlpha = s.a * strength;
+      ctx.fillStyle = '#ffe9c8';
+      ctx.fillRect(Math.round(s.x), Math.round(s.y), Math.round(s.len), 1);
+    }
+    dustBand(t, 112, 8, .055, 1.4, '#a9682f', .20, strength);
+    dustBand(t, 140, 10, .07, 1.9, '#8f521f', .26, strength);
+
+    const haze = ctx.createLinearGradient(0, 60, 0, H);
+    haze.addColorStop(0, 'rgba(150,85,31,0)');
+    haze.addColorStop(1, 'rgba(150,85,31,' + (.28 * strength) + ')');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = haze;
+    ctx.fillRect(0, 60, W, H - 60);
+  }
+
+  function drawSprite(k, x, y, scale = 1){
+    const i = sprites[k], [bw, bh] = SPRITE_SIZE[k];
+    const w = bw * scale, h = bh * scale;
+    if (i && i.ok) ctx.drawImage(i, x - (w - bw) / 2, y - (h - bh) / 2, w, h);
+    else { ctx.fillStyle = '#777'; ctx.fillRect(x, y, bw, bh); }
+  }
+
+  /* El sol palpita siempre; en tormenta solar late más rápido y se enciende en naranja. */
+  function drawSun(t, storm){
+    const period = storm ? .55 : 3.2;
+    const pulse = .5 + .5 * Math.sin(t * Math.PI * 2 / period);
+    const cx = 281, cy = 6;
+
+    if (storm){
+      const glow = ctx.createRadialGradient(cx, cy, 4, cx, cy, 54);
+      glow.addColorStop(0, 'rgba(255,150,40,' + (.35 + .25 * pulse) + ')');
+      glow.addColorStop(1, 'rgba(255,60,20,0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(cx - 54, cy - 54, 108, 108);
+    }
+
+    const scale = 1 + (storm ? .16 : .05) * (reduceMotion ? .5 : pulse);
+    ctx.save();
+    if (storm) ctx.filter = 'saturate(1.7) hue-rotate(-14deg) brightness(1.08)';
+    drawSprite('sun', 261, -14, scale);
+    ctx.restore();
+  }
+
+  function drawScene(now = performance.now()){
+    const t = now / 1000;
+    const dt = Math.min(.05, lastFrame ? (now - lastFrame) / 1000 : .016);
+    lastFrame = now;
+
     ctx.imageSmoothingEnabled = false;
     // cielo y suelo; el horizonte queda alto (y = 38) como en el boceto
-    ctx.fillStyle = '#a4552e'; ctx.fillRect(0, 0, 320, 38);
-    ctx.fillStyle = '#7a3b22'; ctx.fillRect(0, 37, 320, 2);          // línea del horizonte
-    ctx.fillStyle = '#bf6638'; ctx.fillRect(0, 39, 320, 56);
-    ctx.fillStyle = '#cc7240'; ctx.fillRect(0, 95, 320, 45);
-    ctx.fillStyle = '#d97f46'; ctx.fillRect(0, 140, 320, 40);
+    ctx.fillStyle = '#a4552e'; ctx.fillRect(0, 0, W, 38);
+    ctx.fillStyle = '#7a3b22'; ctx.fillRect(0, 37, W, 2);          // línea del horizonte
+    ctx.fillStyle = '#bf6638'; ctx.fillRect(0, 39, W, 56);
+    ctx.fillStyle = '#cc7240'; ctx.fillRect(0, 95, W, 45);
+    ctx.fillStyle = '#d97f46'; ctx.fillRect(0, 140, W, 40);
 
     const storm = game.alertKey === 'alert.storm' || game.alertKey === 'alert.absorbed';
+    const dusty = game.weather.dusty;
+    const strength = dusty ? (DUST_POWER[game.weather.dustLevelId] || .7) : 0;
     const hasCrops = game.decisions.growing.length > 0;   // cultivos en marcha → base con invernadero verde
 
-    // el sol (arriba a la derecha) se cambia por el signo de advertencia en una tormenta solar
-    if (storm) drawSprite('warning', 261, 0);
-    else       drawSprite('sun', 261, -14);   // el sol sale recortado por el borde superior, como en el boceto
+    if (strength && !reduceMotion) updateParticles(t, dt, strength);
 
+    drawSun(t, storm);
+    drawDustBack(t, strength);              // polvo de fondo
+
+    ctx.globalAlpha = 1 - .55 * strength;   // la arena difumina las estructuras
     drawSprite(hasCrops ? 'hab_crops' : 'hab', 54, 42);
     drawSprite('solar', 216, 50);
     drawSprite('rover', 77, 139);
+    ctx.globalAlpha = 1;
 
-    if (game.weather.dusty){
-      ctx.fillStyle = 'rgba(200,110,50,0.45)';
-      [18, 63, 108].forEach(y => ctx.fillRect(0, y, 320, 12));
-      ctx.fillStyle = 'rgba(190,100,40,0.15)'; ctx.fillRect(0, 0, 320, 140);
+    if (dusty){
+      ctx.fillStyle = 'rgba(78,34,10,' + (.22 * strength) + ')';  // oscurece la escena
+      ctx.fillRect(0, 0, W, H);
+      drawDustFront(t, strength);           // granos, ráfagas y neblina
     }
-    if (storm){ ctx.fillStyle = 'rgba(255,70,50,0.16)'; ctx.fillRect(0, 0, 320, 180); }
+    if (storm){ ctx.fillStyle = 'rgba(255,70,50,0.16)'; ctx.fillRect(0, 0, W, H); }
   }
 
   /* Números del polvo que usan varios textos (así nunca se desincronizan con la config). */
@@ -519,6 +655,14 @@ if (typeof document !== 'undefined') {
   $('#fcOk').onclick = () => { game.forecastOpen = false; render(); };
 
   setLang(LANG);
+
+  /* animación continua solo si el usuario no pidió movimiento reducido */
+  if (!reduceMotion){
+    (function frame(now){
+      if (!document.hidden) drawScene(now);
+      requestAnimationFrame(frame);
+    })(performance.now());
+  }
 
   /* datos vivos: si DONKI responde, sustituye el mazo; si no, quedan los archivados.
      El estado de la fuente ya no se muestra en pantalla. */

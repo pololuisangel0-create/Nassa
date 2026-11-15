@@ -105,7 +105,7 @@ Replace the files in `assets/sprites/` keeping the same names (`sun`, `warning`,
 
 ## Roadmap (add/fix later)
 
-- Live DONKI fetch quality (more event types, RadLab BLEO doses beyond LEO), animations,
+- Live DONKI fetch quality (more event types, RadLab BLEO doses beyond LEO),
   classroom mode for older siblings/parents.
 
 Not endorsed by NASA.
