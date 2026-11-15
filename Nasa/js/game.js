@@ -235,6 +235,7 @@ if (typeof document !== 'undefined') {
 
   /* ---------- tormenta de arena: partículas, cortinas y capas de polvo ---------- */
   const DUST_POWER = { light: .45, moderate: .72, severe: 1 };
+  const SOLAR_PERIOD = 2;   // 37 % más corto que el pulso normal (3.2 s)
   const GRAIN_COLORS = ['#ffe3bd', '#f7c98f', '#e0a566'];
 
   const grains = Array.from({ length: 150 }, () => ({
@@ -363,6 +364,28 @@ if (typeof document !== 'undefined') {
     ctx.restore();
   }
 
+  /* Ondas de radiación que salen del sol y se expanden como olas del mar. */
+  function drawSolarStorm(t){
+    const cx = 281, cy = 6;
+    ctx.lineWidth = 1.8;
+    for (let i = 0; i < 4; i++){
+      const age = ((t * .45) + i / 4) % 1;          // 0 → nace en el sol, 1 → se desvanece
+      const r = 20 + 296 * age;   // nace en el borde del sol, no encima del sprite
+      const amp = 2 + 5 * age;                       // la onda se arruga al crecer
+      ctx.globalAlpha = (1 - age) * .38;
+      ctx.strokeStyle = i % 2 ? '#ffb347' : '#ff5a2a';
+      ctx.beginPath();
+      for (let a = 0; a <= 6.2832; a += .1){
+        const rr = r + Math.sin(a * 8 + t * 4 + i) * amp;
+        const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
+        if (a === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
   function drawScene(now = performance.now()){
     const t = now / 1000;
     const dt = Math.min(.05, lastFrame ? (now - lastFrame) / 1000 : .016);
@@ -397,7 +420,12 @@ if (typeof document !== 'undefined') {
       ctx.fillRect(0, 0, W, H);
       drawDustFront(t, strength);           // granos, ráfagas y neblina
     }
-    if (storm){ ctx.fillStyle = 'rgba(255,70,50,0.16)'; ctx.fillRect(0, 0, W, H); }
+    if (storm){
+      drawSolarStorm(t);                     // ondas de radiación
+      const flash = .5 + .5 * Math.sin(t * Math.PI * 2 / SOLAR_PERIOD);
+      ctx.fillStyle = 'rgba(255,70,50,' + (.10 + .07 * (reduceMotion ? .5 : flash)) + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
   }
 
   /* Números del polvo que usan varios textos (así nunca se desincronizan con la config). */

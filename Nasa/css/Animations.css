@@ -1,0 +1,146 @@
+/* ==========================================================
+   NASSA · Mars Outpost — animaciones
+   Cárgalo DESPUÉS de style.css:
+   <link rel="stylesheet" href="style.css">
+   <link rel="stylesheet" href="animations.css">
+   Contiene: @keyframes · reglas con `animation` · reduced-motion
+   ========================================================== */
+
+/* ---------- keyframes ---------- */
+@keyframes starDrift{
+  from{transform:translate3d(0,0,0)}
+  to{transform:translate3d(-260px,130px,0)}
+}
+@keyframes titleIn{
+  0%{opacity:0;transform:translateY(-6px);filter:blur(3px)}
+  100%{opacity:1;transform:none;filter:none}
+}
+@keyframes pulse{
+  0%,100%{opacity:1}
+  50%{opacity:.45}
+}
+@keyframes sheen{to{left:130%}}
+@keyframes panelIn{
+  from{opacity:0;transform:translateY(12px)}
+  to{opacity:1;transform:none}
+}
+@keyframes blink{50%{opacity:.15}}
+@keyframes bannerIn{
+  from{opacity:0;transform:translateX(-10px)}
+  to{opacity:1;transform:none}
+}
+@keyframes spin{to{transform:translateY(-50%) rotate(360deg)}}
+@keyframes wobble{
+  0%,100%{transform:translateY(-50%) translateX(0)}
+  50%{transform:translateY(-50%) translateX(4px)}
+}
+@keyframes alertIn{
+  from{opacity:0;transform:translateY(-6px) scale(.98)}
+  to{opacity:1;transform:none}
+}
+@keyframes slideIn{
+  from{opacity:0;transform:translateX(-8px)}
+  to{opacity:1;transform:none}
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes popIn{
+  from{opacity:0;transform:translateY(16px) scale(.96)}
+  to{opacity:1;transform:none}
+}
+@keyframes scanSweep{from{top:-30%}to{top:110%}}
+@keyframes targetBlink{
+  0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent) 50%, transparent)}
+  50%{box-shadow:0 0 0 6px transparent}
+}
+@keyframes slPulse{
+  0%,100%{opacity:.72}
+  50%{opacity:1}
+}
+@keyframes slRing{
+  0%,100%{stroke-opacity:.12}
+  50%{stroke-opacity:.55}
+}
+@keyframes flow{to{stroke-dashoffset:-12}}
+@keyframes dcWind{
+  0%,100%{opacity:.5}
+  50%{opacity:1}
+}
+@keyframes drift{
+  from{transform:translateX(-24px);opacity:0}
+  20%{opacity:1}
+  to{transform:translateX(36px);opacity:0}
+}
+
+/* ---------- fondo ---------- */
+body::before{animation:starDrift 120s linear infinite}
+
+/* ---------- cabecera ---------- */
+h1{animation:titleIn .8s var(--ease) both}
+#solLine::before{animation:pulse 2.4s ease-in-out infinite}
+
+/* ---------- botones ---------- */
+button:hover:not(:disabled)::after{animation:sheen .8s var(--ease)}
+
+/* ---------- paneles ---------- */
+.panel{animation:panelIn .5s var(--ease) both}
+#hud{animation-delay:.06s}
+#actions{animation-delay:.12s}
+#logPanel{animation-delay:.18s}
+#real{animation-delay:.24s}
+
+/* ---------- escena ---------- */
+.cam-tag .rec{animation:blink 1.6s steps(2,end) infinite}
+
+/* ---------- barras ---------- */
+.bar.low .val{animation:pulse 1.2s ease-in-out infinite}
+
+/* ---------- eventos ---------- */
+.event-line{animation:bannerIn .45s var(--ease) both}
+.event-line.solar::before{animation:spin 6s linear infinite}
+.event-line.dust::before{animation:wobble 1.6s ease-in-out infinite}
+
+/* ---------- estado y alertas ---------- */
+.status-line .warn{animation:pulse 1.4s ease-in-out infinite}
+.alert{animation:alertIn .45s var(--ease) both}
+
+/* ---------- registro ---------- */
+.log li{animation:slideIn .3s var(--ease)}
+
+/* ---------- fuente de datos ---------- */
+.src.loading{animation:pulse 1.2s ease-in-out infinite}
+
+/* ---------- overlays ---------- */
+.overlay{animation:fadeIn var(--slow) var(--ease)}
+.card{animation:popIn var(--slow) var(--ease)}
+
+/* ---------- pronóstico ---------- */
+.forecast-card::after{animation:scanSweep 3.5s linear infinite}
+.pip.target{animation:targetBlink 1.6s ease-in-out infinite}
+
+/* ilustración de radiación */
+.sl-halo,.sl-core,.sl-heart{animation:slPulse 2.8s ease-in-out infinite}
+.sl-core{animation-duration:2.4s}
+.sl-heart{animation-duration:2s;animation-direction:reverse}
+.sl-ring{animation:slRing 2.4s ease-in-out infinite}
+.sl-beam{animation:flow 1.1s linear infinite}
+
+/* ilustración de polvo */
+.dc-sun{animation:slPulse 3.6s ease-in-out infinite}
+.dc-wind{animation:dcWind 2.6s ease-in-out infinite}
+.dc-wind.d2{animation-duration:2s}
+.dc-wind.d3{animation-duration:3.2s}
+.dc-grain{animation:drift 2.2s linear infinite}
+.dc-grain.g2{animation-duration:1.7s}
+.dc-grain.g3{animation-duration:2.8s}
+
+/* ---------- pantalla final ---------- */
+#endTitle{animation:titleIn .8s var(--ease) both}
+
+/* ---------- movimiento reducido (accesibilidad) ---------- */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+  }
+  body::before,body::after{display:none}
+}
