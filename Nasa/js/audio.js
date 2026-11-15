@@ -10,8 +10,8 @@ const NassaAudio = (() => {
     confirm: ['confirm.mp3', .55],
     alert:   ['alert.mp3', .60],
     harvest: ['harvest.mp3', .50],
-    win:     ['win.mp3', .60],
-    fail:    ['fail.mp3', .60],
+    win:     ['confirm.mp3', .65],  // más alegre que el anterior
+    fail:    ['win.mp3', .60],      // el antiguo sonido de victoria pasa a derrota
   };
   const read = (k, def) => {
     try { const v = localStorage.getItem(k); return v === null ? def : v === '1'; }

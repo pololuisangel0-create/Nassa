@@ -217,6 +217,7 @@ if (typeof document !== 'undefined') {
   /* Sprites: cada SVG está dibujado a 1 unidad = 1 píxel del canvas (320x180),
      así que se pintan 1:1 y quedan nítidos. [ancho, alto] sirve de respaldo si falla la carga. */
   const SPRITE_SIZE = {
+    sky: [320, 38], ground: [320, 141],
     sun: [40, 40], hab: [146, 96], hab_crops: [146, 96], solar: [86, 94], rover: [46, 38],
   };
   const sprites = {};
@@ -370,13 +371,14 @@ if (typeof document !== 'undefined') {
     ctx.lineWidth = 1.8;
     for (let i = 0; i < 4; i++){
       const age = ((t * .45) + i / 4) % 1;          // 0 → nace en el sol, 1 → se desvanece
-      const r = 20 + 296 * age;   // nace en el borde del sol, no encima del sprite
-      const amp = 2 + 5 * age;                       // la onda se arruga al crecer
-      ctx.globalAlpha = (1 - age) * .38;
+      const r = 18 + 300 * age;                      // nace junto al sol y se expande
+      const amp = 1.5 + 4.5 * age;                   // la onda se arruga al crecer
+      const fade = Math.sin(age * Math.PI);          // entra y sale suave: sin corte en el bucle
+      ctx.globalAlpha = fade * .38;
       ctx.strokeStyle = i % 2 ? '#ffb347' : '#ff5a2a';
       ctx.beginPath();
       for (let a = 0; a <= 6.2832; a += .1){
-        const rr = r + Math.sin(a * 8 + t * 4 + i) * amp;
+        const rr = r + Math.sin(a * 8 + t * 4 + i) * amp * fade;
         const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
         if (a === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
@@ -393,11 +395,11 @@ if (typeof document !== 'undefined') {
 
     ctx.imageSmoothingEnabled = false;
     // cielo y suelo; el horizonte queda alto (y = 38) como en el boceto
-    ctx.fillStyle = '#a4552e'; ctx.fillRect(0, 0, W, 38);
-    ctx.fillStyle = '#7a3b22'; ctx.fillRect(0, 37, W, 2);          // línea del horizonte
-    ctx.fillStyle = '#bf6638'; ctx.fillRect(0, 39, W, 56);
-    ctx.fillStyle = '#cc7240'; ctx.fillRect(0, 95, W, 45);
-    ctx.fillStyle = '#d97f46'; ctx.fillRect(0, 140, W, 40);
+    const skyImg = sprites.sky, gndImg = sprites.ground;
+    if (skyImg && skyImg.ok) drawSprite('sky', 0, 0);
+    else { ctx.fillStyle = '#a4552e'; ctx.fillRect(0, 0, W, 38); ctx.fillStyle = '#7a3b22'; ctx.fillRect(0, 37, W, 2); }
+    if (gndImg && gndImg.ok) drawSprite('ground', 0, 39);
+    else { ctx.fillStyle = '#bf6638'; ctx.fillRect(0, 39, W, 56); ctx.fillStyle = '#cc7240'; ctx.fillRect(0, 95, W, 45); ctx.fillStyle = '#d97f46'; ctx.fillRect(0, 140, W, 40); }
 
     const storm = game.alertKey === 'alert.storm' || game.alertKey === 'alert.absorbed';
     const dusty = game.weather.dusty;

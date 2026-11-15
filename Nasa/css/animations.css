@@ -60,7 +60,7 @@
   0%,100%{stroke-opacity:.12}
   50%{stroke-opacity:.55}
 }
-@keyframes flow{to{stroke-dashoffset:-12}}
+@keyframes flow{to{stroke-dashoffset:-16}}
 @keyframes dcWind{
   0%,100%{opacity:.5}
   50%{opacity:1}
