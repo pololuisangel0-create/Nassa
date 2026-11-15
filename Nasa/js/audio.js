@@ -1,5 +1,5 @@
 /* audio.js — efectos de sonido y música ambiental del puesto.
-   Sonidos: Kenney (CC0). Música: Mixkit Free License (ver README).
+   Sonidos: Kenney (CC0). Música: Mixkit Free License
    Los navegadores bloquean el audio hasta un gesto del usuario: la música
    arranca en el primer clic o tecla. Las preferencias se guardan en localStorage. */
 const NassaAudio = (() => {
@@ -10,8 +10,8 @@ const NassaAudio = (() => {
     confirm: ['confirm.mp3', .55],
     alert:   ['alert.mp3', .60],
     harvest: ['harvest.mp3', .50],
-    win:     ['victory.mp3', .65], // música nueva de victoria (añadir el archivo en assets/audio)
-    fail:    ['win.mp3', .60],     // el antiguo sonido de victoria pasa a derrota
+    win:     ['victory.mp3', .65],
+    fail:    ['win.mp3', .60],
   };
   const read = (k, def) => {
     try { const v = localStorage.getItem(k); return v === null ? def : v === '1'; }
@@ -27,10 +27,9 @@ const NassaAudio = (() => {
 
   const music = new Audio(BASE + 'ambient.mp3');
   music.loop = true;
-  music.volume = .16;
+  music.volume = .60;
   music.preload = 'auto';
 
-  // Los efectos son cortos: se precargan para que el primer clic no llegue tarde.
   Object.keys(SFX).forEach(name => {
     const a = new Audio(BASE + SFX[name][0]);
     a.preload = 'auto';
@@ -58,7 +57,7 @@ const NassaAudio = (() => {
       m.setAttribute('aria-pressed', String(musicOn));
       m.classList.toggle('off', !musicOn);
       m.setAttribute('aria-label', musicOn ? labels.musicOff : labels.musicOn);
-      m.title = musicOn ? labels.musicOff : labels.musicOn;   // el título dice qué hace el clic
+      m.title = musicOn ? labels.musicOff : labels.musicOn;
     }
     if (s){
       s.setAttribute('aria-pressed', String(sfxOn));
