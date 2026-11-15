@@ -14,6 +14,8 @@ class SpaceWeather {
   constructor(rng = Math.random){
     this.rng = rng;
     this.dustLeft = 0;
+    this.dustLevelId = null;
+    this.dustIncome = 0;  // recarga de energía por sol mientras dura la tormenta de arena en curso
     this.lastEv = null;   // último evento sorteado (para no repetirlo seguido)
     const live = SpaceWeather.liveEvents;
     this.pool = live || WEATHER_DATA.DONKI_EVENTS;
@@ -42,18 +44,38 @@ class SpaceWeather {
     if (opts.noDust || this.rng() < C.STORM){
       return { type: 'radiation', ev: this._nextEvent() };
     }
-    return { type: 'dust' };
+    // intensidad y duración se deciden ya, para poder avisarlas con antelación
+    return { type: 'dust', level: SpaceWeather.pickDustLevel(this.rng()), days: this._dustDays() };
   }
 
-  /* ¿Seguirá habiendo polvo después de `nights` noches más? (cada noche descuenta 1) */
-  dustActiveAfter(nights){
-    return this.dustLeft - nights > 0;
+  /* Duración al azar: entre DUST_MIN y DUST_MAX soles. */
+  _dustDays(){
+    const C = SpaceWeather.CFG;
+    return C.DUST_MIN + Math.floor(this.rng() * (C.DUST_MAX - C.DUST_MIN + 1));
+  }
+
+  /* Variaciones de la tormenta de arena: cuanto más fuerte, menos energía se recarga por sol. */
+  static pickDustLevel(r){
+    const L = SpaceWeather.CFG.DUST_LEVELS;
+    return L[Math.min(L.length - 1, Math.floor(r * L.length))];
+  }
+
+  /* ¿Hay una tormenta de arena en curso? Mientras la haya, NO se puede sortear ni avisar otra:
+     la duración ya está decidida desde que empezó, así que dustLeft > 0 basta para saberlo. */
+  dustBusy(){
+    return this.dustLeft > 0;
   }
 
   /* Se llama cuando la tormenta de arena empieza de verdad, no al pronosticarla.
-     Nunca se acumula: como mucho se renueva a DUST_LEN. */
-  startDust(){
-    this.dustLeft = Math.max(this.dustLeft, SpaceWeather.CFG.DUST_LEN);
+     Dura entre DUST_MIN y DUST_MAX soles (al azar) y recarga `level.income` de energía por sol.
+     Devuelve la duración elegida. */
+  startDust(level, days){
+    const C = SpaceWeather.CFG;
+    level = level || SpaceWeather.pickDustLevel(this.rng());
+    this.dustIncome = level.income;
+    this.dustLevelId = level.id;
+    this.dustLeft = days || this._dustDays();
+    return this.dustLeft;
   }
 
   /* Lo llama el juego cada noche. Devuelve true la noche en que el polvo termina. */
@@ -65,19 +87,21 @@ class SpaceWeather {
     return sol % SpaceWeather.CFG.EVERY === 0;
   }
 
-  /* Escudo necesario para absorber una tormenta solar. */
+  /* Escudo que quita la tormenta solar (y que hace falta tener para sobrevivirla): depende de su severidad.
+     La tormenta solar afecta SOLO al escudo. */
   static need(ev){
-    return ev.severity * SpaceWeather.CFG.ABSORB;
+    return ev.severity * SpaceWeather.CFG.SHIELD_PER_SEV;
   }
 
-  /* Impacto de una tormenta solar sobre el escudo. Función pura. */
+  /* Impacto de una tormenta solar. Función pura.
+     Escudo suficiente: se absorbe y el escudo pierde `need` (nunca baja de 1 por esto).
+     Escudo insuficiente: radiación mortal. Oxígeno, comida y energía no intervienen. */
   static impact(shield, ev){
-    const C = SpaceWeather.CFG, S = ev.severity, need = SpaceWeather.need(ev);
+    const need = SpaceWeather.need(ev);
     if (shield >= need){
-      return { absorbed: true, shieldLoss: S * C.SHIELD_HIT };
+      return { absorbed: true, shieldLoss: Math.min(need, Math.max(0, shield - 1)) };
     }
-    // sin escudo suficiente: el equipo de oxígeno se daña de forma permanente
-    return { absorbed: false, o2Hit: Math.max(S * 4, Math.floor((need - shield) * 0.6)) };
+    return { absorbed: false, lethal: true };
   }
 
   /* Severidad de 2 a 10 según la clase de la fulguración (X8.7, M5.1…). */
@@ -158,8 +182,14 @@ class SpaceWeather {
 SpaceWeather.CFG = {
   EVERY: 5,           // cada cuántos soles hay evento
   STORM: 0.4,         // probabilidad de tormenta solar; el resto son tormentas de arena
-  DUST_LEN: 3,        // soles que dura una tormenta de polvo
-  ABSORB: 8, SHIELD_HIT: 4,   // tormenta absorbida si escudo >= severidad*ABSORB
+  DUST_MIN: 3, DUST_MAX: 6,   // la tormenta de polvo dura entre 3 y 6 soles (al azar)
+  SHIELD_PER_SEV: 6,  // escudo que quita una tormenta solar = severidad × 6 (severidad 10 → 60, 9 → 54, 5 → 30)
+  // variaciones de la tormenta de arena (solo afecta a la energía): recarga por sol mientras dura (normal: 14)
+  DUST_LEVELS: [
+    { id: 'light',    income: 10 },
+    { id: 'moderate', income: 5 },
+    { id: 'severe',   income: 0 },
+  ],
 };
 SpaceWeather.liveEvents = null;   // se llena si DONKI responde
 

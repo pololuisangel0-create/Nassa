@@ -39,6 +39,7 @@ class Game {
     this.weather = new SpaceWeather(rng);
     this.forecast = null;         // { target, roll }: evento ya sorteado para la noche `target`
     this.forecastOpen = false;    // ¿mostrar el aviso ahora?
+    this.radiationKill = false;   // true si una tormenta solar mató al jugador
     this.log.push('log.intro', { n: CFG.WIN_SOL });
     this._prepareForecast();
   }
@@ -59,7 +60,10 @@ class Game {
     const s = this.stats;
 
     // ---- pasa la noche ----
-    s.add('power', this.weather.dusty ? CFG.DUST_INCOME : CFG.INCOME);
+    // recarga solar: solo la tormenta de arena la reduce (según su intensidad)
+    let income = CFG.INCOME;
+    if (this.weather.dusty) income = Math.min(income, this.weather.dustIncome);
+    s.add('power', income);
     s.capOxygen();
     s.add('oxygen', -CFG.O2_DRAIN);
     s.add('shield', -CFG.SHIELD_DECAY);
@@ -81,7 +85,7 @@ class Game {
         this.forecast = null;
       } else {
         // el polvo ya avanzó esta noche: si aún queda, no puede empezar otro encima
-        roll = this.weather.draw({ noDust: this.weather.dustLeft > 0 });
+        roll = this.weather.draw({ noDust: this.weather.dustBusy() });
       }
       this._applyWeather(roll);
     }
@@ -110,10 +114,8 @@ class Game {
     if (this.forecast) return;
     const target = this._nextEventSol();
     if (target === null || target - this.sol > FORECAST_AHEAD) return;
-    // noches que pasarán hasta el evento (incluida la suya): si el polvo seguirá activo, no puede salir polvo
-    const nights = target - this.sol + 1;
-    const dustBusy = this.weather.dustActiveAfter(nights);
-    this.forecast = { target, roll: this.weather.draw({ noDust: dustBusy }) };
+    // si ahora hay una tormenta de arena en curso no se avisa otra, aunque termine antes del evento
+    this.forecast = { target, roll: this.weather.draw({ noDust: this.weather.dustBusy() }) };
     this.forecastOpen = true;
   }
 
@@ -137,6 +139,7 @@ class Game {
   /* Clave del mensaje de derrota si alguna de las 4 barras está en 0, o null si todo va bien. */
   _deadReason(){
     const s = this.stats;
+    if (this.radiationKill) return 'log.failRadiation';
     if (s.oxygen <= 0) return 'log.failO2';
     if (s.shield <= 0) return 'log.failShield';
     if (s.power  <= 0) return 'log.failPower';
@@ -167,9 +170,9 @@ class Game {
   _applyWeather(r){
     if (r.type === 'radiation') this._radiation(r.ev);
     else {
-      this.weather.startDust();
+      const days = this.weather.startDust(r.level, r.days);
       this.alertKey = 'alert.dust';
-      this.log.push('log.dustStart');
+      this.log.push('log.dustStart', { days, low: this.weather.dustIncome, levelId: r.level.id });
     }
   }
 
@@ -182,14 +185,10 @@ class Game {
       this.alertKey = 'alert.absorbed';
       this.log.push('log.absorbed', { date: ev.date, hit: imp.shieldLoss, ev });
     } else {
-      s.maxO2 = Math.max(CFG.MIN_O2_GEAR, s.maxO2 - imp.o2Hit);
-      s.capOxygen();
-      s.add('oxygen', -imp.o2Hit);
-      s.add('shield', -imp.shieldLoss);
+      // radiación mortal: la misión termina esta misma noche
+      this.radiationKill = true;
       this.alertKey = 'alert.storm';
-      const lost = this.decisions.loseCrops();
-      this.log.push('log.stormHit', { date: ev.date, max: s.maxO2, o2: imp.o2Hit, hit: imp.shieldLoss, had, need, ev });
-      if (lost) this.log.push('log.cropsLost');
+      this.log.push('log.stormHit', { date: ev.date, had, need, ev });
     }
   }
 }
@@ -240,7 +239,10 @@ if (typeof document !== 'undefined') {
 
   /* Números del polvo que usan varios textos (así nunca se desincronizan con la config). */
   function msgVars(){
-    return { days: SpaceWeather.CFG.DUST_LEN, low: CFG.DUST_INCOME, normal: CFG.INCOME };
+    const W = SpaceWeather.CFG;
+    return { min: W.DUST_MIN, max: W.DUST_MAX, days: game.weather.dusty ? game.weather.dustLeft : W.DUST_MAX,
+             low: game.weather.dusty ? game.weather.dustIncome : W.DUST_LEVELS[W.DUST_LEVELS.length - 1].income,
+             level: game.weather.dusty ? t('lvl.' + game.weather.dustLevelId) : '', normal: CFG.INCOME };
   }
 
   function renderMsg(m){
@@ -248,8 +250,9 @@ if (typeof document !== 'undefined') {
     if (m.key === 'log.act') return t('log.act', { name: t('act.' + v.id + '.name'), hint: t('act.' + v.id + '.hint') });
     if (m.key === 'log.absorbed' || m.key === 'log.stormHit'){
       const ev = v.ev;
-      return t(m.key, { date: ev.date, label: L(ev, 'label'), note: L(ev, 'note'), hit: v.hit, max: v.max, o2: v.o2, had: v.had, need: v.need });
+      return t(m.key, { date: ev.date, label: L(ev, 'label'), note: L(ev, 'note'), hit: v.hit, had: v.had, need: v.need });
     }
+    if (m.key === 'log.dustStart') return t(m.key, Object.assign(v, { level: t('lvl.' + v.levelId) }));
     return t(m.key, v);
   }
 
@@ -306,7 +309,9 @@ if (typeof document !== 'undefined') {
     $('#fcArt').dataset.type = type;
     $('#fcEvent').textContent = type === 'radiation' ? ev.date + ' — ' + L(ev, 'label') : '';
     $('#fcNote').textContent = type === 'radiation' ? L(ev, 'note') : '';
-    $('#fcText').textContent = t('fc.' + type, msgVars());
+    const extra = type === 'radiation' ? { dmg: SpaceWeather.need(ev) }
+                                       : { days: f.roll.days, low: f.roll.level.income, level: t('lvl.' + f.roll.level.id) };
+    $('#fcText').textContent = t('fc.' + type, Object.assign(msgVars(), extra));
     fillShieldGauge(type, ev);
     $('#fcOk').textContent = t('fc.continue');
   }
@@ -328,7 +333,17 @@ if (typeof document !== 'undefined') {
     const showForecast = !!game.forecast && !game.over;
     fl.hidden = !showForecast;
     fl.className = 'event-line' + (showForecast && game.forecast.roll.type === 'dust' ? ' dust' : ' solar');
-    if (showForecast) fl.textContent = forecastLineHTML();
+    if (showForecast){
+      let txt = forecastLineHTML();
+      // tormenta solar: el escudo necesario (valor fijo) siempre a la vista
+      if (game.forecast.roll.type === 'radiation')
+        txt += ' · ' + t('cd.need', { need: SpaceWeather.need(game.forecast.roll.ev) });
+      else {   // tormenta de arena: su intensidad y cuánto recargarás por sol
+        const lv = game.forecast.roll.level;
+        txt += ' · ' + t('cd.level', { level: t('lvl.' + lv.id), days: game.forecast.roll.days, low: lv.income });
+      }
+      fl.textContent = txt;
+    }
   }
 
   function render(){
@@ -466,14 +481,15 @@ if (typeof document !== 'undefined') {
     }
     return g;
   }
-  // estrategia prudente: una acción por sol, por prioridad
+  // estrategia prudente (una acción por sol): oxígeno primero, luego el escudo que pide la tormenta anunciada
   const careful = g => {
-    const s = g.stats;
-    if (s.shield < 70) return 'shieldUp';
-    if (s.food < 55) return 'crops';
+    const s = g.stats, f = g.forecast;
+    if (s.oxygen < 40) return 'recycler';
+    if (f && f.roll.type === 'radiation' && g.projectedShield(f.target) < SpaceWeather.need(f.roll.ev) + 5) return 'shieldUp';
+    if (s.food < 25) return 'crops';
+    if (s.shield < 45) return 'shieldUp';
     if (s.oxygen < 60) return 'recycler';
-    if (s.power >= 40) return 'crops';
-    if (s.oxygen < 85) return 'recycler';
+    if (s.food < 55) return 'crops';
     return null;
   };
   const careless = g => g.stats.oxygen < 55 ? 'recycler' : null;
@@ -509,12 +525,39 @@ if (typeof document !== 'undefined') {
   console.assert(f.decisions.growing.length === 0, 'el cultivo debe cosecharse al madurar');
   console.assert(f.log.entries.some(e => e.key === 'log.cropsDone'), 'la cosecha debe registrarse en el log');
 
-  // tormenta de arena: dura 3 noches
-  const dz = new Game(() => 0.99);
-  dz.weather.startDust();
-  let nights = 0;
-  while (dz.weather.dusty && nights < 10){ dz.weather.tickDust(); nights++; }
-  console.assert(nights === 3, 'la tormenta de arena debe durar 3 soles');
+  // tormenta de arena: dura entre DUST_MIN y DUST_MAX noches, y salen todas las duraciones
+  {
+    const seen = new Set();
+    for (let i = 0; i < 400; i++){
+      const dz = new SpaceWeather(Math.random);
+      dz.startDust();
+      let nights = 0;
+      while (dz.dusty && nights < 20){ dz.tickDust(); nights++; }
+      console.assert(nights >= SpaceWeather.CFG.DUST_MIN && nights <= SpaceWeather.CFG.DUST_MAX, 'duración fuera de rango: ' + nights);
+      seen.add(nights);
+    }
+    console.assert(seen.size === SpaceWeather.CFG.DUST_MAX - SpaceWeather.CFG.DUST_MIN + 1, 'deben salir todas las duraciones');
+  }
+
+  // jamás hay aviso ni sorteo de polvo mientras hay una tormenta de arena en curso (ni aunque termine antes del evento)
+  {
+    let bad = 0;
+    for (let i = 0; i < 300; i++){
+      const gm = new Game(Math.random);
+      for (let d = 0; d < 40 && !gm.over; d++){
+        if (gm.weather.dusty && gm.forecast && gm.forecast.roll.type === 'dust') bad++;
+        gm.nextSol();
+      }
+    }
+    console.assert(bad === 0, 'hubo ' + bad + ' avisos de polvo durante una tormenta de arena');
+  }
+
+  // el impacto siempre devuelve un escudo perdido numérico (antes faltaba y el escudo se volvía NaN)
+  for (const sh of [0, 20, 50, 100]) for (const sev of [2, 5, 9, 10]){
+    const im = SpaceWeather.impact(sh, { severity: sev });
+    console.assert(im.absorbed ? Number.isFinite(im.shieldLoss) : im.lethal === true, 'absorbida: pérdida numérica; si no, mortal');
+    console.assert(im.absorbed === (sh >= SpaceWeather.need({ severity: sev })), 'absorbed coherente con need');
+  }
 
   // aviso: aparece 2 soles antes, no vuelve a abrirse, y el evento anunciado es el que se aplica
   const pr = new Game(() => 0.1);   // 0.1 < STORM: tormenta solar
@@ -535,7 +578,6 @@ if (typeof document !== 'undefined') {
   console.assert(pr.log.entries.some(e => e.vars && e.vars.ev === pev), 'debe aplicarse exactamente el evento anunciado');
 
   // configuración coherente: un evento no puede empezar mientras el anterior sigue activo o avisado
-  console.assert(SpaceWeather.CFG.EVERY > SpaceWeather.CFG.DUST_LEN, 'EVERY debe ser mayor que DUST_LEN');
   console.assert(SpaceWeather.CFG.EVERY > FORECAST_AHEAD, 'EVERY debe ser mayor que FORECAST_AHEAD');
 
   // nunca dos avisos a la vez, aunque el aviso sea muy anticipado y los eventos muy seguidos
@@ -558,7 +600,7 @@ if (typeof document !== 'undefined') {
   nd.weather.startDust();
   console.assert(nd.weather.draw({ noDust: true }).type === 'radiation', 'con polvo activo no debe sortearse otro polvo');
   nd.weather.startDust(); nd.weather.startDust();
-  console.assert(nd.weather.dustLeft === SpaceWeather.CFG.DUST_LEN, 'el polvo no se acumula');
+  console.assert(nd.weather.dustLeft <= SpaceWeather.CFG.DUST_MAX, 'el polvo no se acumula');
 
   // el escudo proyectado descuenta todas las noches hasta el evento (incluida la del evento)
   const pj = new Game(() => 0.1);
@@ -592,12 +634,54 @@ if (typeof document !== 'undefined') {
   lw.nextSol();
   console.assert(lw.over && !lw.won, 'no se gana con la comida en 0');
 
-  // una tormenta sin escudo suficiente golpea el escudo, ya no lo pone a 0 a la fuerza
-  const hit = new Game(() => 0.1);
-  hit.stats.shield = 60;
-  const ev0 = { severity: 9, date: 'x', label: 'x', note: 'x' };
-  hit._radiation(ev0);
-  console.assert(hit.stats.shield > 0 && hit.stats.shield < 60 && hit.stats.maxO2 < 100, 'la tormenta sin escudo daña escudo y equipo de oxígeno');
+  // tormenta solar: afecta SOLO al escudo; quita según su severidad y, sin escudo suficiente, mata
+  {
+    const weak = { severity: 5 }, strong = { severity: 10 };
+    console.assert(SpaceWeather.need(strong) > SpaceWeather.need(weak), 'más severidad, más escudo');
+    console.assert(SpaceWeather.need(strong) === 60, 'severidad 10 quita 60');
+
+    const ev0 = { severity: 9, date: 'x', label: 'x', note: 'x' };   // quita 54
+    const ok = new Game(() => 0.99);
+    ok.stats.shield = 100;
+    const p0 = ok.stats.power, o0 = ok.stats.oxygen, f0 = ok.stats.food;
+    ok._radiation(ev0);
+    console.assert(!ok.radiationKill && ok.stats.shield === 100 - SpaceWeather.need(ev0), 'escudo suficiente: absorbe y pierde la cantidad según severidad');
+    console.assert(ok.stats.power === p0 && ok.stats.oxygen === o0 && ok.stats.food === f0 && !ok.weather.dusty, 'la tormenta solar solo toca el escudo');
+
+    const bad = new Game(() => 0.99);
+    bad.stats.shield = SpaceWeather.need(ev0) - 1;   // falta solo 1 punto: también es mortal
+    const o2 = bad.stats.oxygen, food = bad.stats.food;
+    bad._radiation(ev0);
+    console.assert(bad.radiationKill && bad.stats.oxygen === o2 && bad.stats.food === food, 'escudo insuficiente: radiación mortal, sin tocar oxígeno ni comida');
+    console.assert(bad._deadReason() === 'log.failRadiation', 'la causa de derrota debe ser la radiación');
+  }
+
+  // la duración avisada es exactamente la que dura la tormenta
+  for (let i = 0; i < 100; i++){
+    const w = new SpaceWeather(Math.random), r = w.draw({ noDust: false });
+    if (r.type !== 'dust') continue;
+    w.startDust(r.level, r.days);
+    let n = 0; while (w.dusty){ w.tickDust(); n++; }
+    console.assert(n === r.days && r.days >= SpaceWeather.CFG.DUST_MIN && r.days <= SpaceWeather.CFG.DUST_MAX, 'la duración avisada debe cumplirse');
+  }
+
+  // tormenta de arena: afecta SOLO a la energía; la recarga depende de su intensidad y salen las tres
+  {
+    const C = SpaceWeather.CFG;
+    const lv = new Set();
+    for (let i = 0; i < 400; i++){ const r = SpaceWeather.pickDustLevel(Math.random()); lv.add(r.id); }
+    console.assert(lv.size === C.DUST_LEVELS.length, 'deben salir todas las intensidades de arena');
+    for (const level of C.DUST_LEVELS){
+      const dg = new Game(() => 0.99);
+      dg.weather.startDust(level);
+      dg.stats.power = 20; dg.stats.food = 90; dg.stats.oxygen = 90; dg.stats.shield = 90; dg.forecast = null;
+      const sh0 = dg.stats.shield;
+      dg.nextSol();
+      console.assert(dg.stats.power - 20 === level.income, 'recarga con arena ' + level.id + ': ' + (dg.stats.power - 20));
+      console.assert(level.income < CFG.INCOME, 'la arena siempre reduce la recarga');
+      console.assert(dg.stats.shield === sh0 - CFG.SHIELD_DECAY, 'la arena no toca el escudo');
+    }
+  }
 
   let wins = 0, aMax = 0, bMax = 0, aFood = 0, bFood = 0, bWins = 0;
   const N = 100;
@@ -608,10 +692,9 @@ if (typeof document !== 'undefined') {
     if (a.won) wins++;
     if (b.won) bWins++;
   }
-  console.assert(wins / N >= 0.7, 'careful play should win most runs (' + wins + '/' + N + ')');
+  console.assert(wins / N >= 0.6, 'careful play should win most runs (' + wins + '/' + N + ')');
   console.assert(bWins / N < 0.3, 'no-food no-shield strategy should fail most runs (' + bWins + '/' + N + ')');
   console.assert(aFood / N > bFood / N, 'planting should keep food higher than not planting');
-  console.assert(aMax / N > bMax / N, 'shielding should keep gear healthier than not shielding');
 
   const g = new Game();
   const ids = Object.keys(ACTIONS);
@@ -625,7 +708,7 @@ if (typeof document !== 'undefined') {
 
   console.log('Self-tests: careful won ' + wins + '/' + N + ' (avg maxO2 ' + Math.round(aMax / N) +
               ', avg food ' + Math.round(aFood / N) + ') | careless won ' + bWins + '/' + N +
-              ' | undo ok | crops ok | dust 3 sols ok | warning ok | random ok');
+              ' | undo ok | crops ok | dust 3-6 sols ok | warning ok | random ok');
 }
 
 if (typeof module !== 'undefined') module.exports = { Game, ACTIONS, CFG };

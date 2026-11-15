@@ -5,16 +5,16 @@ const CFG = {
   WIN_SOL: 30,
   START: { power: 50, oxygen: 80, shield: 60, food: 60, maxO2: 100 },
   PICKS_PER_SOL: 1,   // acciones permitidas por sol
-  INCOME: 14, DUST_INCOME: 3,
+  INCOME: 20,   // recarga solar normal por sol (la tormenta de arena la reduce: ver DUST_LEVELS en events.js)
   O2_DRAIN: 10, FOOD_DRAIN: 5, SHIELD_DECAY: 5, MIN_O2_GEAR: 30,
   WARN_LOW: 10,   // umbral del aviso "casi vacío"
 };
 
 /* "crops" NO da comida al plantar: la cosecha llega 3 soles después. */
 const ACTIONS = {
-  recycler: { o2: 30, power: -12 },
-  shieldUp: { shield: 30, power: -20 },
-  crops:    { power: -12, o2: -6, delay: 3, harvest: 30 },
+  recycler: { o2: 30, power: -20 },
+  shieldUp: { shield: 30, power: -30 },
+  crops:    { power: -20, o2: -6, delay: 3, harvest: 30 },
 };
 
 const costOf = a => ({ power: Math.max(0, -(a.power || 0)), o2: Math.max(0, -(a.o2 || 0)) });
