@@ -44,7 +44,7 @@ const TEXTS = {
 
     'act.recycler.name': 'Water Recycler', 'act.recycler.hint': '+30 oxygen, −20 power',
     'act.shieldUp.name': 'Reinforce Shield', 'act.shieldUp.hint': '+30 shield, −30 power',
-    'act.crops.name': 'Grow Crops', 'act.crops.hint': 'food +30 at harvest (3 sols), −20 power, −6 oxygen',
+    'act.crops.name': 'Grow Crops', 'act.crops.hint': 'food +50 at harvest (5 sols), −20 power, −20 oxygen',
 
     'log.intro': '🚀 Touchdown! You command the Mars outpost. Survive {n} sols.',
     'log.act': '🔧 {name}: {hint}',
@@ -116,7 +116,7 @@ const TEXTS = {
 
     'act.recycler.name': 'Recicladora de Agua', 'act.recycler.hint': '+30 oxígeno, −20 energía',
     'act.shieldUp.name': 'Reforzar Escudo', 'act.shieldUp.hint': '+30 escudo, −30 energía',
-    'act.crops.name': 'Cultivar Alimentos', 'act.crops.hint': 'comida +30 en cosecha (3 soles), −20 energía, −6 oxígeno',
+    'act.crops.name': 'Cultivar Alimentos', 'act.crops.hint': 'comida +50 en cosecha ( soles), −20 energía, −20 oxígeno',
 
     'log.intro': '🚀 ¡Aterrizaje! Comandas el puesto avanzado de Marte. Sobrevive {n} soles.',
     'log.act': '🔧 {name}: {hint}',

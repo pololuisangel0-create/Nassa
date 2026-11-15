@@ -14,7 +14,7 @@ const CFG = {
 const ACTIONS = {
   recycler: { o2: 30, power: -20 },
   shieldUp: { shield: 30, power: -30 },
-  crops:    { power: -20, o2: -6, delay: 3, harvest: 30 },
+  crops:    { power: -20, o2: -20, delay: 5, harvest: 50 },
 };
 
 const costOf = a => ({ power: Math.max(0, -(a.power || 0)), o2: Math.max(0, -(a.o2 || 0)) });
