@@ -198,6 +198,22 @@ if (typeof document !== 'undefined') {
   const $ = sel => document.querySelector(sel);
   let game = new Game();
 
+  /* Audio opcional: si js/audio.js no está, el juego sigue funcionando en silencio. */
+  const SND = (typeof NassaAudio !== 'undefined') ? NassaAudio : null;
+  const snd = name => { if (SND) SND.play(name); };
+
+  /* Nodos que se actualizan en cada render: se buscan una sola vez. */
+  const bars = {};
+  document.querySelectorAll('.bar').forEach(el => {
+    bars[el.dataset.k] = {
+      el,
+      label: el.querySelector('label'),
+      fill: el.querySelector('.fill'),
+      val: el.querySelector('.val'),
+    };
+  });
+  const capEl = document.querySelector('.cap');
+
   /* Sprites: cada SVG está dibujado a 1 unidad = 1 píxel del canvas (320x180),
      así que se pintan 1:1 y quedan nítidos. [ancho, alto] sirve de respaldo si falla la carga. */
   const SPRITE_SIZE = {
@@ -251,7 +267,7 @@ if (typeof document !== 'undefined') {
   /* Números del polvo que usan varios textos (así nunca se desincronizan con la config). */
   function msgVars(){
     const W = SpaceWeather.CFG;
-    return { min: W.DUST_MIN, max: W.DUST_MAX, days: game.weather.dusty ? game.weather.dustLeft : W.DUST_MAX,
+    return { days: game.weather.dusty ? game.weather.dustLeft : W.DUST_MAX,
              low: game.weather.dusty ? game.weather.dustIncome : W.DUST_LEVELS[W.DUST_LEVELS.length - 1].income,
              level: game.weather.dusty ? t('lvl.' + game.weather.dustLevelId) : '', normal: CFG.INCOME };
   }
@@ -327,8 +343,11 @@ if (typeof document !== 'undefined') {
     $('#fcOk').textContent = t('fc.continue');
   }
 
+  let forecastWasOpen = false;
   function syncForecast(){
     const open = !!game.forecast && game.forecastOpen && !game.over;
+    if (open && !forecastWasOpen) snd('alert');
+    forecastWasOpen = open;
     $('#forecast').hidden = !open;
     if (open) fillForecast();
   }
@@ -359,16 +378,17 @@ if (typeof document !== 'undefined') {
 
   function render(){
     const s = game.stats, d = game.decisions;
-    $('#gameTitle').textContent = t('title');
     $('#solLine').textContent = t('sol', { n: game.sol, total: CFG.WIN_SOL }) + (game.weather.dusty ? t('dust') : '');
     ['power', 'oxygen', 'shield', 'food'].forEach(k => {
-      const bar = document.querySelector('.bar[data-k="' + k + '"]');
-      bar.querySelector('label').textContent = t(k);
-      bar.querySelector('.fill').style.width = s[k] + '%';
-      bar.querySelector('.val').textContent = Math.round(s[k]);
+      const b = bars[k];
+      if (!b) return;
+      const name = t(k);
+      if (b.label.textContent !== name) b.label.textContent = name;
+      b.fill.style.width = s[k] + '%';
+      b.val.textContent = Math.round(s[k]);
+      b.el.classList.toggle('low', s[k] <= 20);
     });
-    const cap = document.querySelector('.cap');
-    if (cap) cap.style.left = s.maxO2 + '%';
+    if (capEl) capEl.style.left = s.maxO2 + '%';
 
     renderEvents();
 
@@ -410,21 +430,29 @@ if (typeof document !== 'undefined') {
     $('#endScreen').hidden = false;
   }
 
+  const ACT_ICON = { recycler: '💧', shieldUp: '🛡️', crops: '🌱' };
   const btns = $('#btns');
   for (const id of Object.keys(ACTIONS)){
     const b = document.createElement('button');
+    b.type = 'button';
     b.dataset.act = id;
-    b.onclick = () => { game.toggle(id); render(); };
+    b.onclick = () => {
+      const wasActive = game.decisions.active().has(id);
+      game.toggle(id);
+      if (!wasActive) snd('confirm');
+      render();
+    };
     btns.appendChild(b);
   }
 
   function buildActionLabels(){
     document.querySelectorAll('#btns button').forEach(b => {
       const id = b.dataset.act;
-      b.textContent = t('act.' + id + '.name');
-      let small = b.querySelector('small');
-      if (!small){ small = document.createElement('small'); b.appendChild(small); }
-      small.textContent = t('act.' + id + '.hint');
+      b.innerHTML = '<span class="ico" aria-hidden="true"></span>' +
+                    '<span class="label"><span class="name"></span><small></small></span>';
+      b.querySelector('.ico').textContent = ACT_ICON[id] || '▸';
+      b.querySelector('.name').textContent = t('act.' + id + '.name');
+      b.querySelector('small').textContent = t('act.' + id + '.hint');
     });
   }
 
@@ -453,15 +481,37 @@ if (typeof document !== 'undefined') {
     $('#gameTitle').textContent = t('title');
     $('#langBtn').textContent = t('langBtn');
     $('#restart').textContent = t('flyAgain');
+    $('#hud').dataset.title = t('ui.telemetry');
+    $('#actions').dataset.title = t('ui.actions');
+    $('#logPanel').dataset.title = t('ui.log');
+    if (SND) SND.setLabels({
+      musicOn: t('audio.musicOn'), musicOff: t('audio.musicOff'),
+      sfxOn: t('audio.sfxOn'), sfxOff: t('audio.sfxOff'),
+    });
     buildActionLabels();
     renderReal();
     render();
   }
   $('#langBtn').onclick = () => setLang(LANG === 'en' ? 'es' : 'en');
 
-  $('#nextSol').onclick = () => { game.nextSol(); render(); };
+  /* un clic suave en cualquier botón; los efectos importantes suman su propio sonido */
+  document.addEventListener('click', e => {
+    if (e.target.closest('button') && !e.target.closest('#nextSol, #btns')) snd('click');
+  });
+
+  $('#nextSol').onclick = () => {
+    const before = new Set(game.log.entries);
+    game.nextSol();
+    const added = game.log.entries.filter(e => !before.has(e));
+    if (game.over) snd(game.won ? 'win' : 'fail');
+    else if (game.alertKey) snd('alert');
+    else if (added.some(e => e.key === 'log.cropsDone')) snd('harvest');
+    else snd('confirm');
+    render();
+  };
   $('#restart').onclick = () => {
     game = new Game();
+    forecastWasOpen = false;
     $('#endScreen').hidden = true;
     renderReal();
     render();

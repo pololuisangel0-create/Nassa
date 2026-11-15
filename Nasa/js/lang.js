@@ -14,6 +14,9 @@ const TEXTS = {
     cropsLine: '🌱 {n} growing · harvest in {d} {d|sol|sols}',
     endSol: 'END SOL ▶', flyAgain: 'FLY AGAIN ▶', langBtn: 'ES',
     whatsReal: "What's real in this game?",
+    'ui.telemetry': 'TELEMETRY', 'ui.actions': 'ACTIONS', 'ui.log': 'FLIGHT LOG',
+    'audio.musicOn': 'Turn music on', 'audio.musicOff': 'Turn music off',
+    'audio.sfxOn': 'Turn sound effects on', 'audio.sfxOff': 'Turn sound effects off',
 
     'src.loading': 'Connecting to NASA DONKI…',
     'src.live': 'LIVE DATA · NASA DONKI',
@@ -83,6 +86,9 @@ const TEXTS = {
     cropsLine: '🌱 {n} creciendo · cosecha en {d} {d|sol|soles}',
     endSol: 'TERMINAR SOL ▶', flyAgain: 'JUGAR OTRA VEZ ▶', langBtn: 'EN',
     whatsReal: '¿Qué es real en este juego?',
+    'ui.telemetry': 'TELEMETRÍA', 'ui.actions': 'ACCIONES', 'ui.log': 'BITÁCORA',
+    'audio.musicOn': 'Activar música', 'audio.musicOff': 'Silenciar música',
+    'audio.sfxOn': 'Activar efectos', 'audio.sfxOff': 'Silenciar efectos',
 
     'src.loading': 'Conectando con NASA DONKI…',
     'src.live': 'DATOS EN VIVO · NASA DONKI',
@@ -120,7 +126,7 @@ const TEXTS = {
     'log.lowPower': '⚠ ¡Baterías casi vacías! Si llegan a cero, el soporte vital se apaga.',
     'log.lowShield': '⚠ ¡Escudo casi vacío! Si llega a cero la misión falla. Refuérzalo.',
     'log.absorbed': '🛡 Evento real {date} — {label}. ¡Tu escudo aguantó el golpe (−{hit} escudo)! {note}',
-    'log.stormHit': '☢ Evento real {date} — {label}. Necesitabas {need} de escudo y tenías {had}. Escudo −{hit}. {note}',
+    'log.stormHit': '☢ Evento real {date} — {label}. Necesitabas {need} de escudo y tenías {had}. {note}',
     'log.cropsDone': '🌾 ¡Cosecha! +{n} comida',
     'log.cropsLost': '☄ ¡La tormenta destruyó los cultivos en crecimiento!',
     'log.failO2': '💨 Se acabó el oxígeno. Misión fallida.',

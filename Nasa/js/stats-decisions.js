@@ -5,7 +5,7 @@ const CFG = {
   WIN_SOL: 30,
   START: { power: 50, oxygen: 80, shield: 60, food: 60, maxO2: 100 },
   PICKS_PER_SOL: 1,   // acciones permitidas por sol
-  INCOME: 20,   // recarga solar normal por sol (la tormenta de arena la reduce: ver DUST_LEVELS en events.js)
+  INCOME: 28,   // recarga solar normal por sol (la tormenta de arena la reduce: ver DUST_LEVELS en events.js)
   O2_DRAIN: 10, FOOD_DRAIN: 5, SHIELD_DECAY: 5, MIN_O2_GEAR: 30,
   WARN_LOW: 10,   // umbral del aviso "casi vacío"
 };
