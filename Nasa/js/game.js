@@ -198,8 +198,13 @@ if (typeof document !== 'undefined') {
   const $ = sel => document.querySelector(sel);
   let game = new Game();
 
+  /* Sprites: cada SVG está dibujado a 1 unidad = 1 píxel del canvas (320x180),
+     así que se pintan 1:1 y quedan nítidos. [ancho, alto] sirve de respaldo si falla la carga. */
+  const SPRITE_SIZE = {
+    sun: [40, 40], warning: [40, 40], hab: [146, 96], hab_crops: [146, 96], solar: [86, 94], rover: [46, 38],
+  };
   const sprites = {};
-  ['sun', 'flare', 'hab', 'solar', 'rover'].forEach(k => {
+  Object.keys(SPRITE_SIZE).forEach(k => {
     const i = new Image();
     i.onload = () => { i.ok = true; drawScene(); };
     i.onerror = () => { i.bad = true; };
@@ -209,25 +214,31 @@ if (typeof document !== 'undefined') {
 
   const cv = $('#scene'), ctx = cv.getContext('2d');
 
-  function drawSprite(k, x, y, s){
-    const i = sprites[k];
-    if (i && i.ok) ctx.drawImage(i, x, y, 16 * s, 16 * s);
-    else { ctx.fillStyle = '#777'; ctx.fillRect(x, y, 16 * s, 16 * s); }
+  function drawSprite(k, x, y){
+    const i = sprites[k], [w, h] = SPRITE_SIZE[k];
+    if (i && i.ok) ctx.drawImage(i, x, y, w, h);
+    else { ctx.fillStyle = '#777'; ctx.fillRect(x, y, w, h); }
   }
 
   function drawScene(){
     ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = '#a4552e'; ctx.fillRect(0, 0, 320, 50);
-    ctx.fillStyle = '#c06a3a'; ctx.fillRect(0, 50, 320, 50);
-    ctx.fillStyle = '#d97f46'; ctx.fillRect(0, 100, 320, 40);
-    ctx.fillStyle = '#8a3f22'; ctx.fillRect(0, 140, 320, 40);
-    ctx.fillStyle = '#a05028'; ctx.fillRect(0, 140, 320, 5);
+    // cielo y suelo; el horizonte queda alto (y = 38) como en el boceto
+    ctx.fillStyle = '#a4552e'; ctx.fillRect(0, 0, 320, 38);
+    ctx.fillStyle = '#7a3b22'; ctx.fillRect(0, 37, 320, 2);          // línea del horizonte
+    ctx.fillStyle = '#bf6638'; ctx.fillRect(0, 39, 320, 56);
+    ctx.fillStyle = '#cc7240'; ctx.fillRect(0, 95, 320, 45);
+    ctx.fillStyle = '#d97f46'; ctx.fillRect(0, 140, 320, 40);
 
     const storm = game.alertKey === 'alert.storm' || game.alertKey === 'alert.absorbed';
-    drawSprite(storm ? 'flare' : 'sun', 244, 12, 4);
-    drawSprite('hab',   36, 104, 4);
-    drawSprite('solar', 128, 96, 4);
-    drawSprite('rover', 216, 96, 4);
+    const hasCrops = game.decisions.growing.length > 0;   // cultivos en marcha → base con invernadero verde
+
+    // el sol (arriba a la derecha) se cambia por el signo de advertencia en una tormenta solar
+    if (storm) drawSprite('warning', 261, 0);
+    else       drawSprite('sun', 261, -14);   // el sol sale recortado por el borde superior, como en el boceto
+
+    drawSprite(hasCrops ? 'hab_crops' : 'hab', 54, 42);
+    drawSprite('solar', 216, 50);
+    drawSprite('rover', 77, 139);
 
     if (game.weather.dusty){
       ctx.fillStyle = 'rgba(200,110,50,0.45)';
